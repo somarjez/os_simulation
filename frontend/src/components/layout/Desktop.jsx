@@ -1719,7 +1719,7 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
           return (
             <Window
               key={win.id}
-              windowData={{ ...win, isActive: win.id === activeWindowId }}
+              windowData={{ ...win, hideTitle: win.appId === 'diagnostics' ? false : win.hideTitle, isActive: win.id === activeWindowId }}
               onClose={closeWindow}
               onMinimize={minimizeWindow}
               onMaximize={maximizeWindow}
