@@ -21,8 +21,8 @@
 }
 
 .os-window.active {
-  border-color: var(--win-accent);
-  box-shadow: 0 8px 32px var(--win-accent-soft), var(--win-shadow);
+  border-color: var(--win-border);
+  box-shadow: var(--win-shadow);
 }
 
 .os-window.maximized {
