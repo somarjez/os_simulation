@@ -24,7 +24,7 @@ export default function Window({
   touchpadEnabled = true,
   children
 }) {
-  const { id, title, x, y, width, height, zIndex, minimized, isActive, isMaximized, noMaximize, hideHeader = false, minWidth = 300, minHeight = 200 } = windowData
+  const { id, title, x, y, width, height, zIndex, minimized, isActive, isMaximized, noMaximize, hideHeader = false, hideTitle = false, minWidth = 300, minHeight = 200 } = windowData
   const windowRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const [resizing, setResizing] = useState(null)
@@ -192,7 +192,7 @@ export default function Window({
             onMouseDown={handleMouseDown}
             onDoubleClick={handleHeaderDoubleClick}
           >
-            <span className="os-window-title">{title}</span>
+            <span className="os-window-title">{hideTitle ? '' : title}</span>
             <div className="os-window-actions">
               <button
                 type="button"

@@ -1,4 +1,15 @@
 import { useState, useEffect } from 'react';
+import {
+  BrushCleaning,
+  Check,
+  Cog,
+  Cpu,
+  Gauge,
+  LineChart,
+  Microscope,
+  RefreshCcw,
+  Zap,
+} from 'lucide-react';
 import '../styles/apps/diagnostics.css';
 
 const SystemDiagnostics = () => {
@@ -87,9 +98,9 @@ const SystemDiagnostics = () => {
 
   const getHealthIndicator = (healthy) => {
     return healthy ? (
-      <span className="health-indicator healthy">✓ Healthy</span>
+      <span className="health-indicator healthy"><Check size={15} /> Healthy</span>
     ) : (
-      <span className="health-indicator unhealthy">⚠ Issues Detected</span>
+      <span className="health-indicator unhealthy"><Zap size={15} /> Issues Detected</span>
     );
   };
 
@@ -108,198 +119,188 @@ const SystemDiagnostics = () => {
     }
   };
 
+  const memoryPercent = Number(healthStatus?.memory?.memory_percent || 0);
+  const boundedMemoryPercent = Math.min(Math.max(memoryPercent, 0), 100);
+  const memoryStatus = healthStatus?.memory?.warning || 'Normal';
+  const integrityIssues = healthStatus?.integrity?.issues || [];
+
   return (
     <div className="diagnostics-container">
-      {/* Header */}
       <div className="diagnostics-header">
-        <h2>System Diagnostics</h2>
+        <h2><Cog size={28} strokeWidth={3} /> System Diagnostics</h2>
         <div className="diagnostics-overall">
           {getHealthIndicator(healthStatus?.overall_healthy)}
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="diagnostics-stats">
-        <div className="stat-card">
-          <div className="stat-label">Memory Usage</div>
-          <div className="stat-value">
-            {healthStatus?.memory?.memory_percent}%
-          </div>
-          <div className="stat-detail">
-            {healthStatus?.stats?.memory?.used} / {healthStatus?.stats?.memory?.max} MB
-          </div>
-          <div className={`stat-status ${healthStatus?.memory?.healthy ? 'ok' : 'warning'}`}>
-            {healthStatus?.memory?.warning || 'Normal'}
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">Running Processes</div>
-          <div className="stat-value">
-            {healthStatus?.stats?.process_count?.running}
-          </div>
-          <div className="stat-detail">
-            {healthStatus?.stats?.startup_processes} startup
-          </div>
-          <div className="stat-status ok">Active</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">CPU Average</div>
-          <div className="stat-value">
-            {healthStatus?.stats?.cpu?.average}%
-          </div>
-          <div className="stat-detail">
-            Across all processes
-          </div>
-          <div className="stat-status ok">Normal</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">System Integrity</div>
-          <div className="stat-value">
-            {healthStatus?.integrity?.healthy ? '✓' : '⚠'}
-          </div>
-          <div className="stat-detail">
-            {healthStatus?.integrity?.issues?.length || 0} issues
-          </div>
-          <div className={`stat-status ${healthStatus?.integrity?.healthy ? 'ok' : 'warning'}`}>
-            {healthStatus?.integrity?.healthy ? 'Valid' : 'Issues'}
-          </div>
-        </div>
-      </div>
-
-      {/* Integrity Issues */}
-      {healthStatus?.integrity?.issues && healthStatus.integrity.issues.length > 0 && (
-        <div className="diagnostics-section">
-          <h3>⚠ System Issues</h3>
-          <div className="issues-list">
-            {healthStatus.integrity.issues.map((issue, index) => (
-              <div
-                key={index}
-                className="issue-item"
-                style={{ borderLeftColor: getSeverityColor(issue.severity) }}
-              >
-                <div className="issue-header">
-                  <span className="issue-severity" style={{ color: getSeverityColor(issue.severity) }}>
-                    {issue.severity.toUpperCase()}
-                  </span>
-                  <span className="issue-title">{issue.issue}</span>
-                </div>
-                {issue.recommendation && (
-                  <div className="issue-recommendation">
-                    💡 {issue.recommendation}
-                  </div>
-                )}
-                {issue.details && (
-                  <div className="issue-details">
-                    <pre>{JSON.stringify(issue, null, 2)}</pre>
-                  </div>
-                )}
+      <div className="diagnostics-content">
+        <div className="diagnostics-main">
+          <div className="diagnostics-stats">
+            <div className="stat-card">
+              <div className="stat-label"><Cog size={13} /> Memory Usage</div>
+              <div className="stat-value">{memoryPercent} %</div>
+              <div className="stat-detail">
+                {healthStatus?.stats?.memory?.used}/{healthStatus?.stats?.memory?.max} MB
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div className={`stat-status ${healthStatus?.memory?.healthy ? 'ok' : 'warning'}`}>
+                {memoryStatus}
+              </div>
+            </div>
 
-      {/* Actions */}
-      <div className="diagnostics-section">
-        <h3>System Maintenance</h3>
-        <div className="diagnostics-actions">
-          <button
-            onClick={runCleanup}
-            disabled={runningTest !== null}
-            className="diag-btn btn-primary"
-          >
-            {runningTest === 'cleanup' ? 'Running...' : '🧹 Run Cleanup'}
-          </button>
-          <button
-            onClick={enforceMemory}
-            disabled={runningTest !== null}
-            className="diag-btn btn-warning"
-          >
-            {runningTest === 'memory' ? 'Running...' : '⚡ Enforce Memory Limits'}
-          </button>
-          <button
-            onClick={runStressTest}
-            disabled={runningTest !== null}
-            className="diag-btn btn-secondary"
-          >
-            {runningTest === 'stress' ? 'Running...' : '🔬 Run Stress Test'}
-          </button>
-          <button
-            onClick={fetchHealth}
-            disabled={runningTest !== null}
-            className="diag-btn btn-secondary"
-          >
-            ↻ Refresh Status
-          </button>
-        </div>
-      </div>
+            <div className="stat-card">
+              <div className="stat-label"><LineChart size={13} /> Running Processes</div>
+              <div className="stat-value">{healthStatus?.stats?.process_count?.running}</div>
+              <div className="stat-detail">{healthStatus?.stats?.startup_processes} startup</div>
+              <div className="stat-status active">Active</div>
+            </div>
 
-      {/* Memory Details */}
-      <div className="diagnostics-section">
-        <h3>Memory Details</h3>
-        <div className="memory-chart">
-          <div
-            className="memory-bar"
-            style={{
-              width: `${healthStatus?.memory?.memory_percent}%`,
-              backgroundColor:
-                healthStatus?.memory?.memory_percent >= 90
-                  ? '#e51400'
-                  : healthStatus?.memory?.memory_percent >= 75
-                  ? '#ff9800'
-                  : '#0078d4',
-            }}
-          >
-            {healthStatus?.memory?.memory_percent}%
-          </div>
-        </div>
-        <div className="memory-info">
-          <div className="memory-row">
-            <span>Used:</span>
-            <span>{healthStatus?.stats?.memory?.used} MB</span>
-          </div>
-          <div className="memory-row">
-            <span>Available:</span>
-            <span>{healthStatus?.stats?.memory?.available} MB</span>
-          </div>
-          <div className="memory-row">
-            <span>Maximum:</span>
-            <span>{healthStatus?.stats?.memory?.max} MB</span>
-          </div>
-        </div>
-      </div>
+            <div className="stat-card">
+              <div className="stat-label"><Cpu size={13} /> CPU Average</div>
+              <div className="stat-value">{healthStatus?.stats?.cpu?.average}%</div>
+              <div className="stat-detail">Across all processes</div>
+              <div className="stat-status ok">Normal</div>
+            </div>
 
-      {/* Process Summary */}
-      <div className="diagnostics-section">
-        <h3>Process Summary</h3>
-        <div className="process-summary">
-          <div className="summary-item">
-            <span className="summary-label">Total Processes:</span>
-            <span className="summary-value">
-              {healthStatus?.stats?.process_count?.total}
-            </span>
+            <div className="stat-card">
+              <div className="stat-label"><Cog size={13} /> System Integrity</div>
+              <div className="stat-value stat-check">
+                {healthStatus?.integrity?.healthy ? <Check size={31} strokeWidth={2.5} /> : <Zap size={31} />}
+              </div>
+              <div className="stat-detail">{integrityIssues.length} issues</div>
+              <div className={`stat-status ${healthStatus?.integrity?.healthy ? 'valid' : 'warning'}`}>
+                {healthStatus?.integrity?.healthy ? 'Valid' : 'Issues'}
+              </div>
+            </div>
           </div>
-          <div className="summary-item">
-            <span className="summary-label">Running:</span>
-            <span className="summary-value success">
-              {healthStatus?.stats?.process_count?.running}
-            </span>
+
+          <div className="diagnostics-lower-grid">
+            <div className="diagnostics-left-column">
+              <div className="diagnostics-section memory-section">
+                <h3><Cog size={16} /> Memory Details</h3>
+                <div className="memory-chart">
+                  <div
+                    className="memory-bar"
+                    style={{
+                      width: `${boundedMemoryPercent}%`,
+                      backgroundColor:
+                        memoryPercent >= 90
+                          ? '#e55050'
+                          : memoryPercent >= 75
+                          ? '#d9962e'
+                          : '#9fe86c',
+                    }}
+                  />
+                  <span className="memory-percent-label">{memoryPercent}%</span>
+                </div>
+                <div className="memory-info">
+                  <div className="memory-row">
+                    <span>Used:</span>
+                    <span>{healthStatus?.stats?.memory?.used} MB</span>
+                  </div>
+                  <div className="memory-row">
+                    <span>Available:</span>
+                    <span>{healthStatus?.stats?.memory?.available} MB</span>
+                  </div>
+                  <div className="memory-row">
+                    <span>Maximum:</span>
+                    <span>{healthStatus?.stats?.memory?.max} MB</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="diagnostics-section process-section">
+                <h3><RefreshCcw size={16} /> Process Summary</h3>
+                <div className="process-summary">
+                  <div className="summary-item total">
+                    <span className="summary-label">Total Processes</span>
+                    <span className="summary-value">{healthStatus?.stats?.process_count?.total}</span>
+                  </div>
+                  <div className="summary-item running">
+                    <span className="summary-label">Running</span>
+                    <span className="summary-value">{healthStatus?.stats?.process_count?.running}</span>
+                  </div>
+                  <div className="summary-item terminated">
+                    <span className="summary-label">Terminated</span>
+                    <span className="summary-value">{healthStatus?.stats?.process_count?.terminated}</span>
+                  </div>
+                  <div className="summary-item startup">
+                    <span className="summary-label">Startup Processes</span>
+                    <span className="summary-value">{healthStatus?.stats?.startup_processes}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="diagnostics-section diagnostics-actions-panel">
+              <h3><Cog size={16} /> System Integrity</h3>
+              <div className="diagnostics-actions">
+                <button
+                  onClick={runCleanup}
+                  disabled={runningTest !== null}
+                  className="diag-btn btn-cleanup"
+                >
+                  <BrushCleaning size={17} />
+                  {runningTest === 'cleanup' ? 'Running...' : 'Run Cleanup'}
+                </button>
+                <button
+                  onClick={enforceMemory}
+                  disabled={runningTest !== null}
+                  className="diag-btn btn-memory"
+                >
+                  <Zap size={17} />
+                  {runningTest === 'memory' ? 'Running...' : 'Enforce Memory Limits'}
+                </button>
+                <button
+                  onClick={runStressTest}
+                  disabled={runningTest !== null}
+                  className="diag-btn btn-stress"
+                >
+                  <Microscope size={17} />
+                  {runningTest === 'stress' ? 'Running...' : 'Run Stress Test'}
+                </button>
+                <button
+                  onClick={fetchHealth}
+                  disabled={runningTest !== null}
+                  className="diag-btn btn-refresh"
+                >
+                  <RefreshCcw size={17} />
+                  Refresh Status
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="summary-item">
-            <span className="summary-label">Terminated:</span>
-            <span className="summary-value muted">
-              {healthStatus?.stats?.process_count?.terminated}
-            </span>
-          </div>
-          <div className="summary-item">
-            <span className="summary-label">Startup Processes:</span>
-            <span className="summary-value">
-              {healthStatus?.stats?.startup_processes}
-            </span>
-          </div>
+
+          {integrityIssues.length > 0 && (
+            <div className="diagnostics-section issues-section">
+              <h3><Gauge size={16} /> System Issues</h3>
+              <div className="issues-list">
+                {integrityIssues.map((issue, index) => (
+                  <div
+                    key={index}
+                    className="issue-item"
+                    style={{ borderLeftColor: getSeverityColor(issue.severity) }}
+                  >
+                    <div className="issue-header">
+                      <span className="issue-severity" style={{ color: getSeverityColor(issue.severity) }}>
+                        {issue.severity.toUpperCase()}
+                      </span>
+                      <span className="issue-title">{issue.issue}</span>
+                    </div>
+                    {issue.recommendation && (
+                      <div className="issue-recommendation">
+                        {issue.recommendation}
+                      </div>
+                    )}
+                    {issue.details && (
+                      <div className="issue-details">
+                        <pre>{JSON.stringify(issue, null, 2)}</pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
