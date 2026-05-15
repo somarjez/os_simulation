@@ -94,8 +94,8 @@
 .diagnostics-section {
   background: var(--diag-panel);
   border: 1px solid #454545;
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: 8px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
 }
 
 .stat-card {
@@ -487,6 +487,187 @@
 
 .diagnostics-container::-webkit-scrollbar-thumb:hover {
   background: #4e4e4e;
+}
+
+:root[data-theme='light'] .diagnostics-container {
+  --diag-bg: #eeeeee;
+  --diag-panel: #ffffff;
+  --diag-panel-dark: #e7e7e7;
+  --diag-line: #b9b9c4;
+  --diag-text: #050638;
+  --diag-muted: #000000;
+  --diag-green: #5bf07d;
+  --diag-lime: #a8e771;
+  --diag-blue: #67b4ec;
+  --diag-amber: #d9ba80;
+  --diag-orange: #ffc36f;
+  background: var(--diag-bg);
+  color: var(--diag-text);
+}
+
+:root[data-theme='light'] .diagnostics-header {
+  border-bottom-color: var(--diag-line);
+}
+
+:root[data-theme='light'] .diagnostics-header h2 {
+  color: #050638;
+}
+
+:root[data-theme='light'] .diagnostics-header svg,
+:root[data-theme='light'] .stat-label svg,
+:root[data-theme='light'] .diagnostics-section h3 svg {
+  color: #000000;
+  stroke: #000000;
+}
+
+:root[data-theme='light'] .health-indicator.healthy {
+  background: #c6f4a9;
+  color: #8acf66;
+}
+
+:root[data-theme='light'] .health-indicator.unhealthy {
+  background: #ffe0a2;
+  color: #b7791f;
+}
+
+:root[data-theme='light'] .stat-card,
+:root[data-theme='light'] .diagnostics-section {
+  background: var(--diag-panel);
+  border-color: #dddddd;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.12);
+  color: #000000;
+}
+
+:root[data-theme='light'] .stat-label,
+:root[data-theme='light'] .diagnostics-section h3 {
+  border-bottom-color: #dedede;
+  color: #000000;
+}
+
+:root[data-theme='light'] .stat-value,
+:root[data-theme='light'] .stat-check,
+:root[data-theme='light'] .stat-detail,
+:root[data-theme='light'] .memory-row,
+:root[data-theme='light'] .issue-title {
+  color: #000000;
+}
+
+:root[data-theme='light'] .stat-status.ok {
+  background: #5bf07d;
+  color: #2d9e45;
+}
+
+:root[data-theme='light'] .stat-status.active {
+  background: #ffb13e;
+  color: #7b560e;
+}
+
+:root[data-theme='light'] .stat-status.valid {
+  background: #5ab4f0;
+  color: #06466d;
+}
+
+:root[data-theme='light'] .stat-status.warning {
+  background: #ffb13e;
+  color: #7b560e;
+}
+
+:root[data-theme='light'] .memory-chart {
+  background: #d9d9d9;
+  border-color: #d9d9d9;
+}
+
+:root[data-theme='light'] .memory-bar {
+  background-color: #a8e771 !important;
+}
+
+:root[data-theme='light'] .memory-percent-label {
+  color: transparent;
+}
+
+:root[data-theme='light'] .memory-info {
+  background: #ffffff;
+  border-color: #bdbdbd;
+}
+
+:root[data-theme='light'] .memory-row {
+  border-bottom-color: #d0d0d0;
+}
+
+:root[data-theme='light'] .summary-item {
+  background: #e7e7e7;
+  border-color: #eeeeee;
+}
+
+:root[data-theme='light'] .summary-label,
+:root[data-theme='light'] .summary-value {
+  color: #62b5f1;
+}
+
+:root[data-theme='light'] .summary-item.running .summary-label,
+:root[data-theme='light'] .summary-item.running .summary-value {
+  color: #8ce95d;
+}
+
+:root[data-theme='light'] .summary-item.terminated .summary-label,
+:root[data-theme='light'] .summary-item.terminated .summary-value {
+  color: #ffc21c;
+}
+
+:root[data-theme='light'] .summary-item.startup .summary-label,
+:root[data-theme='light'] .summary-item.startup .summary-value {
+  color: #cf7f9b;
+}
+
+:root[data-theme='light'] .diag-btn.btn-cleanup {
+  background: #87c4ee;
+  color: #103550;
+}
+
+:root[data-theme='light'] .diag-btn.btn-memory {
+  background: #d9ba80;
+  color: #ffffff;
+}
+
+:root[data-theme='light'] .diag-btn.btn-stress {
+  background: #a8e771;
+  color: #149b2f;
+}
+
+:root[data-theme='light'] .diag-btn.btn-refresh {
+  background: #ffc36f;
+  color: #986514;
+}
+
+:root[data-theme='light'] .issue-item {
+  background: #ffffff;
+  border-color: #dddddd;
+}
+
+:root[data-theme='light'] .issue-severity {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme='light'] .issue-recommendation {
+  background: rgba(168, 231, 113, 0.22);
+  color: #3d7f22;
+}
+
+:root[data-theme='light'] .issue-details pre {
+  background: #f5f5f5;
+  color: #111111;
+}
+
+:root[data-theme='light'] .diagnostics-container::-webkit-scrollbar-track {
+  background: #eeeeee;
+}
+
+:root[data-theme='light'] .diagnostics-container::-webkit-scrollbar-thumb {
+  background: #c7c7c7;
+}
+
+:root[data-theme='light'] .diagnostics-container::-webkit-scrollbar-thumb:hover {
+  background: #adadad;
 }
 
 @media (max-width: 900px) {
