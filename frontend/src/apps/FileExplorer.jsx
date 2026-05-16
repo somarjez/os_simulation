@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowUp,
+  ChevronRight,
   ClipboardCopy,
   ClipboardPaste,
   FilePlus,
@@ -28,26 +29,44 @@ import {
   AlertCircle,
   Stethoscope,
   Printer,
-  RotateCcw
+  RotateCcw,
+  Star,
+  ChevronDown,
+  FileCode,
+  FileAudio,
+  FileVideo,
+  Archive,
 } from 'lucide-react'
 
 import PrintPreviewDialog from '../components/PrintPreviewDialog'
 import { enqueuePrintJob } from '../utils/printJobs'
 
-// Icon mapping for app shortcuts
 const APP_SHORTCUT_ICONS = {
-  'terminal': Terminal,
-  'files': Folder,
-  'localfiles': HardDrive,
-  'notes': FileText,
-  'settings': Settings,
-  'monitor': Activity,
-  'appstore': Package,
-  'eventviewer': AlertCircle,
-  'diagnostics': Stethoscope
+  terminal: Terminal,
+  files: Folder,
+  localfiles: HardDrive,
+  notes: FileText,
+  settings: Settings,
+  monitor: Activity,
+  appstore: Package,
+  eventviewer: AlertCircle,
+  diagnostics: Stethoscope,
 }
 
 const RECYCLE_BIN_PATH = '/home/user/.recycle_bin'
+
+const getFileIcon = (name = '', isDir = false) => {
+  if (isDir) return { Icon: Folder, color: '#e8a020' }
+  const ext = name.toLowerCase().split('.').pop()
+  if (['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext)) return { Icon: FileImage, color: '#0ea5e9' }
+  if (['mp4','webm','mov','avi','mkv'].includes(ext))               return { Icon: FileVideo,  color: '#8b5cf6' }
+  if (['mp3','wav','ogg','flac','aac'].includes(ext))               return { Icon: FileAudio,  color: '#10b981' }
+  if (['js','ts','jsx','tsx','py','go','rs','json','css','html','xml'].includes(ext)) return { Icon: FileCode, color: '#f59e0b' }
+  if (['zip','tar','gz','rar','7z'].includes(ext))                  return { Icon: Archive,    color: '#64748b' }
+  if (['txt','md'].includes(ext))                                   return { Icon: FileText,   color: '#0067c0' }
+  if (['lnk'].includes(ext))                                        return { Icon: FileText,   color: '#0067c0' }
+  return { Icon: FileText, color: '#64748b' }
+}
 
 export default function FileExplorer({ onWindowTitleChange }) {
   const [currentPath, setCurrentPath] = useState('/home/user')
@@ -74,75 +93,45 @@ export default function FileExplorer({ onWindowTitleChange }) {
   const [thumbnails, setThumbnails] = useState({})
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const [printPreviewData, setPrintPreviewData] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // Quick access locations
   const quickAccessItems = [
-    { name: 'Desktop', path: '/home/user/Desktop', icon: Home },
-    { name: 'Downloads', path: '/home/user/Downloads', icon: Download },
-    { name: 'Documents', path: '/home/user/Documents', icon: FileText },
-    { name: 'Pictures', path: '/home/user/Pictures', icon: FileImage },
-    { name: 'Music', path: '/home/user/Music', icon: Music },
-    { name: 'Videos', path: '/home/user/Videos', icon: Video },
-    { name: 'Recycle Bin', path: RECYCLE_BIN_PATH, icon: Trash2 },
-    { name: 'This PC', path: '/', icon: HardDrive },
-    { name: 'Network', path: '/network', icon: Network }
+    { name: 'Home',        path: '/home/user',             icon: Home,      group: 'quick' },
+    { name: 'Desktop',     path: '/home/user/Desktop',     icon: Home,      group: 'quick' },
+    { name: 'Downloads',   path: '/home/user/Downloads',   icon: Download,  group: 'quick' },
+    { name: 'Documents',   path: '/home/user/Documents',   icon: FileText,  group: 'quick' },
+    { name: 'Pictures',    path: '/home/user/Pictures',    icon: FileImage, group: 'quick' },
+    { name: 'Music',       path: '/home/user/Music',       icon: Music,     group: 'quick' },
+    { name: 'Videos',      path: '/home/user/Videos',      icon: Video,     group: 'quick' },
+    { name: 'Recycle Bin', path: RECYCLE_BIN_PATH,         icon: Trash2,    group: 'this-pc' },
+    { name: 'This PC',     path: '/',                      icon: HardDrive, group: 'this-pc' },
+    { name: 'Network',     path: '/network',               icon: Network,   group: 'this-pc' },
   ]
 
+  useEffect(() => { loadDirectory(currentPath); setSearchQuery(''); setIsSearching(false) }, [currentPath])
+  useEffect(() => { setAddressBarValue(currentPath) }, [currentPath])
   useEffect(() => {
-    loadDirectory(currentPath)
-    setSearchQuery('')
-    setIsSearching(false)
-  }, [currentPath])
-
-  useEffect(() => {
-    setAddressBarValue(currentPath)
-  }, [currentPath])
-
-  useEffect(() => {
-    // Apply desktop/start-menu requested path after mount so it is stable in React dev/strict mode.
     const pathToOpen = localStorage.getItem('files_open_path')
-    if (pathToOpen) {
-      setCurrentPath(pathToOpen)
-      localStorage.removeItem('files_open_path')
-    }
+    if (pathToOpen) { setCurrentPath(pathToOpen); localStorage.removeItem('files_open_path') }
   }, [])
-
+  useEffect(() => { onWindowTitleChange?.(getWindowTitleFromPath(currentPath)) }, [currentPath, onWindowTitleChange])
   useEffect(() => {
-    onWindowTitleChange?.(getWindowTitleFromPath(currentPath))
-  }, [currentPath, onWindowTitleChange])
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      performSearch()
-    } else {
-      setIsSearching(false)
-      setSearchResults([])
-    }
+    if (searchQuery.trim()) performSearch()
+    else { setIsSearching(false); setSearchResults([]) }
   }, [searchQuery])
-
   useEffect(() => {
-    const entriesToPreview = (isSearching ? searchResults : entries)
-      .filter((entry) => entry.type !== 'dir')
-      .slice(0, 24)
-
-    entriesToPreview.forEach((entry) => {
+    const entriesToPreview = (isSearching ? searchResults : entries).filter(e => e.type !== 'dir').slice(0, 24)
+    entriesToPreview.forEach(entry => {
       const name = entry.path.split('/').pop()
       if (!isImageFile(name) && !isVideoFile(name)) return
       if (thumbnails[entry.path]) return
       loadThumbnail(entry.path, name)
     })
   }, [entries, searchResults, isSearching])
-
   useEffect(() => {
     return () => {
-      Object.values(thumbnails).forEach((thumb) => {
-        if (thumb?.url?.startsWith('blob:')) {
-          URL.revokeObjectURL(thumb.url)
-        }
-      })
-      if (fileContent?.mediaUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(fileContent.mediaUrl)
-      }
+      Object.values(thumbnails).forEach(thumb => { if (thumb?.url?.startsWith('blob:')) URL.revokeObjectURL(thumb.url) })
+      if (fileContent?.mediaUrl?.startsWith('blob:')) URL.revokeObjectURL(fileContent.mediaUrl)
     }
   }, [])
 
@@ -154,189 +143,85 @@ export default function FileExplorer({ onWindowTitleChange }) {
       tried.add(base)
       try {
         const response = await fetch(`${base}${path}`, options)
-        if (base !== apiBase) {
-          setApiBase(base)
-        }
+        if (base !== apiBase) setApiBase(base)
         return response
-      } catch (err) {
-        continue
-      }
+      } catch { continue }
     }
     throw new Error('network')
   }
 
   const loadDirectory = async (path) => {
-    setError('')
-    setSearchQuery('')
-    setIsSearching(false)
-    setFileContent(null)
+    setError(''); setSearchQuery(''); setIsSearching(false); setFileContent(null)
     try {
-      const endpoint = path === RECYCLE_BIN_PATH
-        ? '/fs/recycle/list'
-        : `/fs/list?path=${encodeURIComponent(path)}`
+      const endpoint = path === RECYCLE_BIN_PATH ? '/fs/recycle/list' : `/fs/list?path=${encodeURIComponent(path)}`
       const response = await fetchApi(endpoint)
-      if (response.ok) {
-        const data = await response.json()
-        setEntries(data.nodes || [])
-      } else {
-        setError('Failed to load directory')
-      }
-    } catch (err) {
-      setError('System service unavailable')
-    }
+      if (response.ok) { const data = await response.json(); setEntries(data.nodes || []) }
+      else setError('Failed to load directory')
+    } catch { setError('System service unavailable') }
   }
 
   const performSearch = async () => {
     if (!searchQuery.trim()) return
-    
-    setIsSearching(true)
-    setError('')
-    
-    try {
-      // Simple search: filter current directory entries by name
-      const filtered = entries.filter(entry => 
-        entry.path.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-      setSearchResults(filtered)
-    } catch (err) {
-      setError('Search failed')
-    }
+    setIsSearching(true); setError('')
+    const filtered = entries.filter(entry => entry.path.toLowerCase().includes(searchQuery.toLowerCase()))
+    setSearchResults(filtered)
   }
 
-  const clearSearch = () => {
-    setSearchQuery('')
-    setIsSearching(false)
-    setSearchResults([])
-  }
+  const clearSearch = () => { setSearchQuery(''); setIsSearching(false); setSearchResults([]) }
 
-  const handleNavigate = (path) => {
-    setCurrentPath(path)
-    setSelectedFile(null)
-    setFileContent(null)
-  }
-
+  const handleNavigate = (path) => { setCurrentPath(path); setSelectedFile(null); setFileContent(null) }
   const handleGoUp = () => {
     if (currentPath === '/') return
-    const parts = currentPath.split('/').filter(Boolean)
-    parts.pop()
+    const parts = currentPath.split('/').filter(Boolean); parts.pop()
     setCurrentPath('/' + parts.join('/'))
   }
 
   const handleFileClick = async (entry) => {
-    console.log('File clicked:', entry)
-    if (entry.type === 'dir') {
-      handleNavigate(entry.path)
-    } else {
-      setSelectedFile(entry)
-      
-      // Check if it's an app shortcut - launch the app
-      if (isAppShortcut(entry)) {
-        console.log('Launching app shortcut:', entry.path)
-        await launchAppFromShortcut(entry.path)
-      } 
-      // Check if it's a text file - open in Notes app
-      else if (entry.path.endsWith('.txt')) {
-        console.log('Opening text file in Notes:', entry.path)
-        await openInNotesApp(entry.path)
-      }
-      // Otherwise, show file viewer
-      else {
-        console.log('Loading file content:', entry.path)
-        await loadFileContent(entry.path)
-      }
-    }
+    if (entry.type === 'dir') { handleNavigate(entry.path); return }
+    setSelectedFile(entry)
+    if (isAppShortcut(entry)) await launchAppFromShortcut(entry.path)
+    else if (entry.path.endsWith('.txt')) await openInNotesApp(entry.path)
+    else await loadFileContent(entry.path)
   }
 
   const launchAppFromShortcut = async (shortcutPath) => {
-    try {
-      // Dispatch custom event to Desktop component to handle the launch
-      window.dispatchEvent(new CustomEvent('launchAppShortcut', { 
-        detail: { path: shortcutPath }
-      }))
-    } catch (err) {
-      setError('Failed to launch app from shortcut')
-    }
+    try { window.dispatchEvent(new CustomEvent('launchAppShortcut', { detail: { path: shortcutPath } })) }
+    catch { setError('Failed to launch app from shortcut') }
   }
 
   const openInNotesApp = async (filePath) => {
     try {
-      console.log('[FileExplorer] Opening in Notes app. File:', filePath)
-      // Store the file path for NotesApp to open
       localStorage.setItem('notes_open_file', filePath)
-      console.log('[FileExplorer] localStorage set. Key exists:', !!localStorage.getItem('notes_open_file'))
-      
-      // Dispatch event to Desktop to launch Notes app properly
-      console.log('[FileExplorer] Dispatching openFileInApp event to Desktop')
-      window.dispatchEvent(new CustomEvent('openFileInApp', { 
-        detail: { 
-          appId: 'notes',
-          filePath: filePath
-        }
-      }))
-    } catch (err) {
-      console.error('[FileExplorer] Failed to open file in Notes:', err)
-      setError('Failed to open file in Notes')
-      // Fallback to viewer
-      await loadFileContent(filePath)
-    }
+      window.dispatchEvent(new CustomEvent('openFileInApp', { detail: { appId: 'notes', filePath } }))
+    } catch { await loadFileContent(filePath) }
   }
 
   const loadFileContent = async (filePath) => {
-    setIsLoadingFile(true)
-    setError('')
+    setIsLoadingFile(true); setError('')
     try {
-      const response = await fetchApi('/fs/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: filePath })
-      })
+      const response = await fetchApi('/fs/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: filePath }) })
       if (response.ok) {
         const data = await response.json()
-        if (fileContent?.mediaUrl?.startsWith('blob:')) {
-          URL.revokeObjectURL(fileContent.mediaUrl)
-        }
+        if (fileContent?.mediaUrl?.startsWith('blob:')) URL.revokeObjectURL(fileContent.mediaUrl)
         const name = filePath.split('/').pop()
-        const mediaUrl = isImageFile(name) || isVideoFile(name)
-          ? createMediaUrl(name, data.content)
-          : null
-        setFileContent({
-          path: filePath,
-          content: data.content,
-          name,
-          mediaUrl
-        })
+        const mediaUrl = isImageFile(name) || isVideoFile(name) ? createMediaUrl(name, data.content) : null
+        setFileContent({ path: filePath, content: data.content, name, mediaUrl })
       } else {
-        const message = response.status === 404 ? 'File not found' : 'Failed to read file'
-        setError(message)
+        setError(response.status === 404 ? 'File not found' : 'Failed to read file')
         setFileContent(null)
       }
-    } catch (err) {
-      setError('Failed to read file')
-      setFileContent(null)
-    } finally {
-      setIsLoadingFile(false)
-    }
+    } catch { setError('Failed to read file'); setFileContent(null) }
+    finally { setIsLoadingFile(false) }
   }
 
   const closeFileViewer = () => {
-    if (fileContent?.mediaUrl?.startsWith('blob:')) {
-      URL.revokeObjectURL(fileContent.mediaUrl)
-    }
-    setFileContent(null)
-    setSelectedFile(null)
+    if (fileContent?.mediaUrl?.startsWith('blob:')) URL.revokeObjectURL(fileContent.mediaUrl)
+    setFileContent(null); setSelectedFile(null)
   }
 
   const getExtension = (name = '') => name.toLowerCase().split('.').pop()
-
-  const isImageFile = (name = '') => {
-    const ext = getExtension(name)
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
-  }
-
-  const isVideoFile = (name = '') => {
-    const ext = getExtension(name)
-    return ['mp4', 'webm', 'mov'].includes(ext)
-  }
+  const isImageFile = (name = '') => ['jpg','jpeg','png','gif','webp'].includes(getExtension(name))
+  const isVideoFile = (name = '') => ['mp4','webm','mov'].includes(getExtension(name))
 
   const getMimeType = (name = '') => {
     const ext = getExtension(name)
@@ -355,105 +240,57 @@ export default function FileExplorer({ onWindowTitleChange }) {
     try {
       const mimeType = getMimeType(name).split(';')[0]
       let cleanBase64 = base64
-      if (base64.startsWith('data:')) {
-        cleanBase64 = base64.split(',')[1] || ''
-      }
-      if (!cleanBase64 || cleanBase64.length < 10) {
-        console.error('Invalid base64 data')
-        return ''
-      }
+      if (base64.startsWith('data:')) cleanBase64 = base64.split(',')[1] || ''
+      if (!cleanBase64 || cleanBase64.length < 10) return ''
       const byteCharacters = atob(cleanBase64)
       const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: mimeType })
+      for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i)
+      const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType })
       return URL.createObjectURL(blob)
-    } catch (err) {
-      console.error('Failed to create media URL:', err)
-      return ''
-    }
+    } catch { return '' }
   }
 
   const loadThumbnail = async (path, name) => {
     try {
-      const response = await fetchApi('/fs/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
-      })
+      const response = await fetchApi('/fs/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) })
       if (!response.ok) return
       const data = await response.json()
       const url = createMediaUrl(name, data.content)
-      if (url) {
-        setThumbnails((prev) => ({
-          ...prev,
-          [path]: { url, type: isVideoFile(name) ? 'video' : 'image' }
-        }))
-      }
-    } catch (err) {
-      console.error('Thumbnail load failed:', err)
-    }
+      if (url) setThumbnails(prev => ({ ...prev, [path]: { url, type: isVideoFile(name) ? 'video' : 'image' } }))
+    } catch { /* silent */ }
   }
 
   const getBreadcrumbs = () => {
     const parts = currentPath.split('/').filter(Boolean)
-    const breadcrumbs = [{ name: 'root', path: '/' }]
-    let currentBuild = ''
-    parts.forEach((part) => {
-      currentBuild += '/' + part
-      breadcrumbs.push({ name: part, path: currentBuild })
-    })
-    return breadcrumbs
+    const crumbs = [{ name: 'This PC', path: '/' }]
+    let build = ''
+    parts.forEach(p => { build += '/' + p; crumbs.push({ name: p, path: build }) })
+    return crumbs
   }
 
   const getWindowTitleFromPath = (path) => {
     if (path === RECYCLE_BIN_PATH) return 'Recycle Bin'
     if (path === '/') return 'This PC'
     if (path === '/home/user') return 'Home'
-
     const parts = path.split('/').filter(Boolean)
-    if (parts.length === 0) return 'File Explorer'
-    return parts[parts.length - 1]
+    return parts.length === 0 ? 'File Explorer' : parts[parts.length - 1]
   }
 
   const handleContextMenu = (event, entry) => {
-    event.preventDefault()
-    event.stopPropagation()
-    // Adjust position to keep menu within viewport
-    let x = event.clientX
-    let y = event.clientY
-    // Account for menu size (~180px width, ~200px height)
-    if (x + 200 > window.innerWidth) {
-      x = window.innerWidth - 200
-    }
-    if (y + 250 > window.innerHeight) {
-      y = window.innerHeight - 250
-    }
-    setContextMenu({
-      visible: true,
-      x,
-      y,
-      targetPath: entry.path,
-      targetType: entry.type
-    })
+    event.preventDefault(); event.stopPropagation()
+    let x = event.clientX, y = event.clientY
+    if (x + 220 > window.innerWidth) x = window.innerWidth - 220
+    if (y + 280 > window.innerHeight) y = window.innerHeight - 280
+    setContextMenu({ visible: true, x, y, targetPath: entry.path, targetType: entry.type })
   }
 
   const handleCopy = (e) => {
     e.stopPropagation()
-    if (contextMenu.targetPath) {
-      setClipboard({ action: 'copy', path: contextMenu.targetPath })
-      setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
-    }
+    if (contextMenu.targetPath) { setClipboard({ action: 'copy', path: contextMenu.targetPath }); setContextMenu({ visible: false, x: 0, y: 0, targetPath: null }) }
   }
-
   const handleCut = (e) => {
     e.stopPropagation()
-    if (contextMenu.targetPath) {
-      setClipboard({ action: 'cut', path: contextMenu.targetPath })
-      setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
-    }
+    if (contextMenu.targetPath) { setClipboard({ action: 'cut', path: contextMenu.targetPath }); setContextMenu({ visible: false, x: 0, y: 0, targetPath: null }) }
   }
 
   const handlePaste = async (e) => {
@@ -462,60 +299,15 @@ export default function FileExplorer({ onWindowTitleChange }) {
     const fileName = clipboard.path.split('/').pop()
     const targetPath = currentPath + '/' + fileName
     try {
-      if (clipboard.action === 'copy') {
-        // Read source file
-        const readRes = await fetchApi('/fs/read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: clipboard.path })
-        })
-        if (readRes.ok) {
-          const data = await readRes.json()
-          const content = data.content
-          const createRes = await fetchApi('/fs/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: targetPath, node_type: 'file', content })
-          })
-          if (createRes.status === 409) {
-            await fetchApi('/fs/write', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: targetPath, content })
-            })
-          }
-          loadDirectory(currentPath)
-          setClipboard(null)
-        }
-      } else if (clipboard.action === 'cut') {
-        const readRes = await fetchApi('/fs/read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: clipboard.path })
-        })
-        if (readRes.ok) {
-          const data = await readRes.json()
-          const content = data.content
-          const createRes = await fetchApi('/fs/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: targetPath, node_type: 'file', content })
-          })
-          if (createRes.status === 409) {
-            await fetchApi('/fs/write', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: targetPath, content })
-            })
-          }
-          await fetchApi('/fs/delete?path=' + encodeURIComponent(clipboard.path), { method: 'DELETE' })
-          loadDirectory(currentPath)
-          setClipboard(null)
-        }
+      const readRes = await fetchApi('/fs/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: clipboard.path }) })
+      if (readRes.ok) {
+        const { content } = await readRes.json()
+        const createRes = await fetchApi('/fs/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: targetPath, node_type: 'file', content }) })
+        if (createRes.status === 409) await fetchApi('/fs/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: targetPath, content }) })
+        if (clipboard.action === 'cut') await fetchApi('/fs/delete?path=' + encodeURIComponent(clipboard.path), { method: 'DELETE' })
+        loadDirectory(currentPath); setClipboard(null)
       }
-    } catch (err) {
-      setError('Paste failed')
-    }
+    } catch { setError('Paste failed') }
     setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
   }
 
@@ -531,53 +323,29 @@ export default function FileExplorer({ onWindowTitleChange }) {
 
   const confirmRename = async () => {
     if (!renameName.trim()) return
-    const parts = renameTarget.split('/')
-    parts[parts.length - 1] = renameName
-    const newPath = parts.join('/')
+    const parts = renameTarget.split('/'); parts[parts.length - 1] = renameName
     try {
-      const response = await fetchApi('/fs/rename', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ old_path: renameTarget, new_path: newPath })
-      })
-      if (response.ok) {
-        loadDirectory(currentPath)
-      } else {
-        setError('Rename failed')
-      }
-    } catch (err) {
-      setError('Rename failed')
-    }
-    setShowRenameDialog(false)
-    setRenameTarget(null)
+      const response = await fetchApi('/fs/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ old_path: renameTarget, new_path: parts.join('/') }) })
+      if (response.ok) loadDirectory(currentPath)
+      else setError('Rename failed')
+    } catch { setError('Rename failed') }
+    setShowRenameDialog(false); setRenameTarget(null)
   }
 
   const handleDelete = (e) => {
     e.stopPropagation()
-    if (contextMenu.targetPath) {
-      setDeleteTarget(contextMenu.targetPath)
-      setShowDeleteConfirm(true)
-    }
+    if (contextMenu.targetPath) { setDeleteTarget(contextMenu.targetPath); setShowDeleteConfirm(true) }
     setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
   }
 
   const confirmDelete = async () => {
     try {
-      const permanentDelete = currentPath === RECYCLE_BIN_PATH
-      const response = await fetchApi(
-        `/fs/delete?path=${encodeURIComponent(deleteTarget)}${permanentDelete ? '&permanent=true' : ''}`,
-        { method: 'DELETE' }
-      )
-      if (response.ok) {
-        loadDirectory(currentPath)
-      } else {
-        setError('Delete failed')
-      }
-    } catch (err) {
-      setError('Delete failed')
-    }
-    setShowDeleteConfirm(false)
-    setDeleteTarget(null)
+      const permanent = currentPath === RECYCLE_BIN_PATH
+      const response = await fetchApi(`/fs/delete?path=${encodeURIComponent(deleteTarget)}${permanent ? '&permanent=true' : ''}`, { method: 'DELETE' })
+      if (response.ok) loadDirectory(currentPath)
+      else setError('Delete failed')
+    } catch { setError('Delete failed') }
+    setShowDeleteConfirm(false); setDeleteTarget(null)
   }
 
   const handlePrint = async (e) => {
@@ -586,30 +354,12 @@ export default function FileExplorer({ onWindowTitleChange }) {
       const targetPath = contextMenu.targetPath
       const fileName = targetPath.split('/').pop()
       let content = `Preview unavailable for ${fileName}`
-
       try {
-        const response = await fetchApi('/fs/read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: targetPath })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (typeof data.content === 'string' && data.content.length > 0) {
-            content = data.content
-          }
-        }
-      } catch {
-        // Keep fallback preview text.
-      }
-
+        const response = await fetchApi('/fs/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: targetPath }) })
+        if (response.ok) { const data = await response.json(); if (typeof data.content === 'string' && data.content.length > 0) content = data.content }
+      } catch { /* keep fallback */ }
       const pages = Math.max(1, Math.ceil(content.length / 800))
-      setPrintPreviewData({
-        fileName,
-        content,
-        pages
-      })
+      setPrintPreviewData({ fileName, content, pages })
       setShowPrintPreview(true)
     }
     setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
@@ -617,31 +367,14 @@ export default function FileExplorer({ onWindowTitleChange }) {
 
   const handleSubmitPrint = (printSettings) => {
     if (!printPreviewData) return
-
     const jobName = printPreviewData.fileName.replace(/\.[^/.]+$/, '')
     const copies = Math.max(1, Number(printSettings.copies) || 1)
     for (let i = 0; i < copies; i++) {
-      const job = enqueuePrintJob({
-        jobName,
-        pages: printPreviewData.pages,
-        pid: 1,
-        fileName: printPreviewData.fileName,
-        colorMode: printSettings.colorMode,
-        paperSize: printSettings.paperSize,
-        orientation: printSettings.orientation,
-        timestamp: printSettings.timestamp,
-        copyIndex: i + 1,
-        copies
-      })
-
-      window.dispatchEvent(new CustomEvent('submit-print-job', {
-        detail: job
-      }))
+      const job = enqueuePrintJob({ jobName, pages: printPreviewData.pages, pid: 1, fileName: printPreviewData.fileName, colorMode: printSettings.colorMode, paperSize: printSettings.paperSize, orientation: printSettings.orientation, timestamp: printSettings.timestamp, copyIndex: i + 1, copies })
+      window.dispatchEvent(new CustomEvent('submit-print-job', { detail: job }))
     }
-
-    setError(`Print job submitted: ${printPreviewData.fileName} (${printPreviewData.pages} pages x ${copies} ${copies === 1 ? 'copy' : 'copies'})`)
-    setShowPrintPreview(false)
-    setPrintPreviewData(null)
+    setError(`Print job submitted: ${printPreviewData.fileName} (${printPreviewData.pages} pages × ${copies} ${copies === 1 ? 'copy' : 'copies'})`)
+    setShowPrintPreview(false); setPrintPreviewData(null)
   }
 
   const handleShowProperties = async (e) => {
@@ -649,141 +382,61 @@ export default function FileExplorer({ onWindowTitleChange }) {
     if (contextMenu.targetPath) {
       try {
         const response = await fetchApi(`/fs/properties?path=${encodeURIComponent(contextMenu.targetPath)}`)
-        if (response.ok) {
-          const data = await response.json()
-          setPropertiesData(data)
-        } else {
-          setPropertiesData({
-            path: contextMenu.targetPath,
-            type: contextMenu.targetType,
-            name: contextMenu.targetPath.split('/').pop(),
-            error: 'Failed to load properties'
-          })
-        }
-      } catch (err) {
-        setPropertiesData({
-          path: contextMenu.targetPath,
-          type: contextMenu.targetType,
-          name: contextMenu.targetPath.split('/').pop(),
-          error: 'Failed to load properties'
-        })
-      }
+        if (response.ok) setPropertiesData(await response.json())
+        else setPropertiesData({ path: contextMenu.targetPath, type: contextMenu.targetType, name: contextMenu.targetPath.split('/').pop(), error: 'Failed to load properties' })
+      } catch { setPropertiesData({ path: contextMenu.targetPath, type: contextMenu.targetType, name: contextMenu.targetPath.split('/').pop(), error: 'Failed to load properties' }) }
       setShowPropertiesDialog(true)
     }
     setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
   }
 
   const handleAddressBarSubmit = () => {
-    if (addressBarValue.trim()) {
-      handleNavigate(addressBarValue)
-      setAddressBarEdit(false)
-    }
+    if (addressBarValue.trim()) { handleNavigate(addressBarValue); setAddressBarEdit(false) }
   }
 
   const handleNewFolder = async () => {
-    const folderName = prompt('New folder name:')
-    if (!folderName) return
-    const newPath = currentPath + '/' + folderName
+    const folderName = prompt('New folder name:'); if (!folderName) return
     try {
-      const response = await fetchApi('/fs/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: newPath, node_type: 'dir', content: '' })
-      })
-      if (response.ok) {
-        loadDirectory(currentPath)
-      } else {
-        setError('Failed to create folder')
-      }
-    } catch (err) {
-      setError('Failed to create folder')
-    }
+      const response = await fetchApi('/fs/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentPath + '/' + folderName, node_type: 'dir', content: '' }) })
+      if (response.ok) loadDirectory(currentPath)
+      else setError('Failed to create folder')
+    } catch { setError('Failed to create folder') }
   }
 
   const handleNewFile = async () => {
-    const fileName = prompt('New file name:')
-    if (!fileName) return
-    const newPath = currentPath + '/' + fileName
+    const fileName = prompt('New file name:'); if (!fileName) return
     try {
-      const response = await fetchApi('/fs/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: newPath, node_type: 'file', content: '' })
-      })
-      if (response.ok) {
-        loadDirectory(currentPath)
-      } else {
-        setError('Failed to create file')
-      }
-    } catch (err) {
-      setError('Failed to create file')
-    }
-  }
-
-  const handleQuickAccessClick = (item) => {
-    handleNavigate(item.path)
+      const response = await fetchApi('/fs/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentPath + '/' + fileName, node_type: 'file', content: '' }) })
+      if (response.ok) loadDirectory(currentPath)
+      else setError('Failed to create file')
+    } catch { setError('Failed to create file') }
   }
 
   const restoreRecycleItem = async (pathToRestore) => {
     if (!pathToRestore) return
     try {
-      const response = await fetchApi(
-        `/fs/recycle/restore?recycle_path=${encodeURIComponent(pathToRestore)}`,
-        { method: 'POST' }
-      )
-      if (response.ok) {
-        setError('Item restored')
-        setSelectedFile(null)
-        loadDirectory(currentPath)
-      } else {
-        setError('Restore failed')
-      }
-    } catch {
-      setError('Restore failed')
-    }
+      const response = await fetchApi(`/fs/recycle/restore?recycle_path=${encodeURIComponent(pathToRestore)}`, { method: 'POST' })
+      if (response.ok) { setError('Item restored'); setSelectedFile(null); loadDirectory(currentPath) }
+      else setError('Restore failed')
+    } catch { setError('Restore failed') }
   }
 
   const emptyRecycleBin = async () => {
-    const confirm = window.confirm('Permanently delete all items in Recycle Bin?')
-    if (!confirm) return
+    if (!window.confirm('Permanently delete all items in Recycle Bin?')) return
     try {
       const response = await fetchApi('/fs/recycle/empty', { method: 'DELETE' })
-      if (response.ok) {
-        setSelectedFile(null)
-        setError('Recycle Bin emptied')
-        loadDirectory(currentPath)
-      } else {
-        setError('Failed to empty Recycle Bin')
-      }
-    } catch {
-      setError('Failed to empty Recycle Bin')
-    }
+      if (response.ok) { setSelectedFile(null); setError('Recycle Bin emptied'); loadDirectory(currentPath) }
+      else setError('Failed to empty Recycle Bin')
+    } catch { setError('Failed to empty Recycle Bin') }
   }
 
-  const isDesktopFolder = () => {
-    return currentPath === '/home/user/Desktop'
-  }
-
-  const isAppShortcut = (entry) => {
-    return entry.type === 'file' && entry.path.endsWith('.lnk')
-  }
-
-  const isTextFile = (entry) => {
-    return entry.type === 'file' && entry.path.endsWith('.txt')
-  }
-
-  const isOpenableFile = (entry) => {
-    return isAppShortcut(entry) || isTextFile(entry)
-  }
+  const isAppShortcut = (entry) => entry.type === 'file' && entry.path.endsWith('.lnk')
+  const isTextFile = (entry) => entry.type === 'file' && entry.path.endsWith('.txt')
 
   const getShortcutIcon = (entry) => {
-    const name = entry.path.split('/').pop().replace('.lnk', '')
-    // Try to match common app names
-    const lowerName = name.toLowerCase()
+    const name = entry.path.split('/').pop().replace('.lnk', '').toLowerCase()
     for (const [key, Icon] of Object.entries(APP_SHORTCUT_ICONS)) {
-      if (lowerName.includes(key)) {
-        return Icon
-      }
+      if (name.includes(key)) return Icon
     }
     return FileText
   }
@@ -791,203 +444,225 @@ export default function FileExplorer({ onWindowTitleChange }) {
   useEffect(() => {
     if (!contextMenu.visible) return
     const handleDocClick = (event) => {
-      if (event.target.closest('.files-context-menu')) return
+      if (event.target.closest('.fe-ctx-menu')) return
       setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
     }
     document.addEventListener('mousedown', handleDocClick)
     return () => document.removeEventListener('mousedown', handleDocClick)
   }, [contextMenu.visible])
 
+  const breadcrumbs = getBreadcrumbs()
+  const displayEntries = isSearching ? searchResults : entries
+  const isRecycleBin = currentPath === RECYCLE_BIN_PATH
+
   return (
-    <div className="app-files">
-      <div className="files-layout">
+    <div className="fe-root">
+
+      {/* ── Command bar ── */}
+      <div className="fe-commandbar">
+        <button className="fe-cmd-btn" onClick={handleGoUp} title="Up">
+          <ArrowUp size={15} />
+          <span>Up</span>
+        </button>
+        <div className="fe-cmd-sep" />
+        <button className="fe-cmd-btn" onClick={handleNewFolder} title="New folder">
+          <FolderPlus size={15} />
+          <span>New folder</span>
+        </button>
+        <button className="fe-cmd-btn" onClick={handleNewFile} title="New file">
+          <FilePlus size={15} />
+          <span>New file</span>
+        </button>
+        <div className="fe-cmd-sep" />
+        <button className="fe-cmd-btn" onClick={() => { if (selectedFile) setClipboard({ action: 'cut', path: selectedFile.path }) }} disabled={!selectedFile} title="Cut">
+          <Scissors size={15} />
+          <span>Cut</span>
+        </button>
+        <button className="fe-cmd-btn" onClick={() => { if (selectedFile) setClipboard({ action: 'copy', path: selectedFile.path }) }} disabled={!selectedFile} title="Copy">
+          <ClipboardCopy size={15} />
+          <span>Copy</span>
+        </button>
+        <button className={`fe-cmd-btn ${clipboard ? 'fe-cmd-btn--active' : ''}`} onClick={handlePaste} disabled={!clipboard} title="Paste">
+          <ClipboardPaste size={15} />
+          <span>Paste</span>
+        </button>
+        <div className="fe-cmd-sep" />
+        <button className="fe-cmd-btn" onClick={() => { if (selectedFile) { setRenameTarget(selectedFile.path); setRenameName(selectedFile.path.split('/').pop()); setShowRenameDialog(true) } }} disabled={!selectedFile} title="Rename">
+          <Pencil size={15} />
+          <span>Rename</span>
+        </button>
+        <button className="fe-cmd-btn fe-cmd-btn--danger" onClick={() => { if (selectedFile) { setDeleteTarget(selectedFile.path); setShowDeleteConfirm(true) } }} disabled={!selectedFile} title="Delete">
+          <Trash2 size={15} />
+          <span>Delete</span>
+        </button>
+        {isRecycleBin && (
+          <>
+            <div className="fe-cmd-sep" />
+            <button className="fe-cmd-btn" onClick={() => restoreRecycleItem(selectedFile?.path)} disabled={!selectedFile} title="Restore">
+              <RotateCcw size={15} />
+              <span>Restore</span>
+            </button>
+            <button className="fe-cmd-btn fe-cmd-btn--danger" onClick={emptyRecycleBin} title="Empty Recycle Bin">
+              <Trash2 size={15} />
+              <span>Empty</span>
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation bar (address + search) ── */}
+      <div className="fe-navbar">
+        {/* Breadcrumb address bar */}
+        <div className="fe-addressbar" onClick={() => !addressBarEdit && setAddressBarEdit(true)}>
+          {addressBarEdit ? (
+            <input
+              className="fe-addressbar-input"
+              value={addressBarValue}
+              onChange={e => setAddressBarValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddressBarSubmit(); if (e.key === 'Escape') setAddressBarEdit(false) }}
+              onBlur={() => setAddressBarEdit(false)}
+              autoFocus
+            />
+          ) : (
+            <div className="fe-breadcrumbs">
+              {breadcrumbs.map((crumb, i) => (
+                <span key={crumb.path} className="fe-breadcrumb-item">
+                  <button
+                    className="fe-breadcrumb-btn"
+                    onClick={e => { e.stopPropagation(); handleNavigate(crumb.path) }}
+                  >
+                    {crumb.name}
+                  </button>
+                  {i < breadcrumbs.length - 1 && <ChevronRight size={12} className="fe-breadcrumb-sep" />}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="fe-searchbar">
+          <Search size={14} className="fe-search-icon" />
+          <input
+            className="fe-search-input"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="fe-search-clear" onClick={clearSearch}><X size={13} /></button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Body (sidebar + content) ── */}
+      <div className="fe-body">
+
         {/* Sidebar */}
-        <div className="files-sidebar">
-          <div className="files-sidebar-header">
-            <h3 className="files-sidebar-title">Quick Access</h3>
-          </div>
-          <div className="files-sidebar-list">
-            {quickAccessItems.map((item) => {
+        <nav className="fe-sidebar">
+          <div className="fe-sidebar-group">
+            <div className="fe-sidebar-label">
+              <Star size={11} />
+              Quick access
+            </div>
+            {quickAccessItems.filter(i => i.group === 'quick').map(item => {
               const Icon = item.icon
               return (
                 <button
                   key={item.path}
-                  type="button"
-                  className={`files-sidebar-item ${currentPath === item.path ? 'active' : ''}`}
-                  onClick={() => handleQuickAccessClick(item)}
+                  className={`fe-sidebar-item ${currentPath === item.path ? 'fe-sidebar-item--active' : ''}`}
+                  onClick={() => handleNavigate(item.path)}
                 >
-                  <Icon size={16} className="files-sidebar-icon" />
-                  <span className="files-sidebar-name">{item.name}</span>
+                  <Icon size={15} className="fe-sidebar-icon" />
+                  <span>{item.name}</span>
                 </button>
               )
             })}
           </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="files-main">
-          <div className="files-toolbar">
-            <div className="files-nav-buttons">
-              <button type="button" className="files-nav-btn" onClick={handleGoUp} title="Go up one level">
-                <ArrowUp className="files-toolbar-icon" />
-              </button>
-              <button 
-                type="button" 
-                className={`files-nav-btn ${clipboard ? 'active' : ''}`}
-                onClick={handlePaste}
-                disabled={!clipboard}
-                title={clipboard ? `Paste (${clipboard.action})` : 'Nothing to paste'}
-              >
-                <ClipboardPaste className="files-toolbar-icon" />
-              </button>
-              <button type="button" className="files-nav-btn" onClick={handleNewFolder} title="New Folder">
-                <FolderPlus className="files-toolbar-icon" />
-              </button>
-              <button type="button" className="files-nav-btn" onClick={handleNewFile} title="New File">
-                <FilePlus className="files-toolbar-icon" />
-              </button>
-              {currentPath === RECYCLE_BIN_PATH && (
-                <>
-                  <button
-                    type="button"
-                    className="files-nav-btn"
-                    onClick={() => restoreRecycleItem(selectedFile?.path)}
-                    disabled={!selectedFile}
-                    title="Restore Selected"
-                  >
-                    <RotateCcw className="files-toolbar-icon" />
-                  </button>
-                  <button
-                    type="button"
-                    className="files-nav-btn"
-                    onClick={emptyRecycleBin}
-                    title="Empty Recycle Bin"
-                  >
-                    <Trash2 className="files-toolbar-icon" />
-                  </button>
-                </>
-              )}
+          <div className="fe-sidebar-group">
+            <div className="fe-sidebar-label">
+              <HardDrive size={11} />
+              This PC
             </div>
-
-            <div className="files-address-bar">
-              {addressBarEdit ? (
-                <input
-                  type="text"
-                  className="files-address-input"
-                  value={addressBarValue}
-                  onChange={(e) => setAddressBarValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddressBarSubmit()
-                    if (e.key === 'Escape') setAddressBarEdit(false)
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <span className="files-path" onClick={() => setAddressBarEdit(true)}>
-                  {currentPath}
-                </span>
-              )}
-            </div>
-
-            {/* Search Bar */}
-            <div className="files-search-bar">
-              <Search size={16} className="files-search-icon" />
-              <input
-                type="text"
-                className="files-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search files and folders..."
-              />
-              {searchQuery && (
+            {quickAccessItems.filter(i => i.group === 'this-pc').map(item => {
+              const Icon = item.icon
+              return (
                 <button
-                  type="button"
-                  className="files-search-clear"
-                  onClick={clearSearch}
-                  title="Clear search"
+                  key={item.path}
+                  className={`fe-sidebar-item ${currentPath === item.path ? 'fe-sidebar-item--active' : ''}`}
+                  onClick={() => handleNavigate(item.path)}
                 >
-                  <X size={16} />
+                  <Icon size={15} className="fe-sidebar-icon" />
+                  <span>{item.name}</span>
                 </button>
-              )}
-            </div>
+              )
+            })}
           </div>
+        </nav>
 
-          <div className="files-breadcrumb">
-            {getBreadcrumbs().map((breadcrumb, index) => (
-              <div key={breadcrumb.path} className="files-breadcrumb-item">
-                <button
-                  type="button"
-                  className="files-breadcrumb-btn"
-                  onClick={() => handleNavigate(breadcrumb.path)}
-                >
-                  {breadcrumb.name}
-                </button>
-                {index < getBreadcrumbs().length - 1 && <span className="files-breadcrumb-sep">›</span>}
-              </div>
-            ))}
-          </div>
-
-          {error ? <div className="files-error">{error}</div> : null}
-
-          {isDesktopFolder() && (
-            <div className="files-desktop-notice">
-              <Home size={16} />
-              <span>This folder shows your desktop items and app shortcuts</span>
+        {/* Content area */}
+        <div className="fe-content">
+          {/* Status strips */}
+          {error && (
+            <div className="fe-strip fe-strip--error">
+              <span>{error}</span>
+              <button onClick={() => setError('')}><X size={13} /></button>
             </div>
           )}
-
+          {currentPath === '/home/user/Desktop' && (
+            <div className="fe-strip fe-strip--info">
+              <Home size={13} />
+              <span>Desktop — app shortcuts and files</span>
+            </div>
+          )}
           {isSearching && searchQuery && (
-            <div className="files-search-info">
-              Showing {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+            <div className="fe-strip fe-strip--search">
+              <Search size={13} />
+              <span>{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"</span>
             </div>
           )}
 
-          <div className="files-list">
-            {(isSearching ? searchResults : entries).length === 0 ? (
-              <div className="files-empty">
-                {isSearching ? 'No results found' : 'Directory is empty'}
+          {/* File grid */}
+          <div className="fe-grid" onClick={() => setSelectedFile(null)}>
+            {displayEntries.length === 0 ? (
+              <div className="fe-empty">
+                <Folder size={48} style={{ color: 'var(--win-border)', marginBottom: 12 }} />
+                <p>{isSearching ? 'No results found' : 'This folder is empty'}</p>
               </div>
             ) : (
-              (isSearching ? searchResults : entries).map((entry) => {
+              displayEntries.map(entry => {
                 const entryName = entry.path.split('/').pop()
                 const isShortcut = isAppShortcut(entry)
-                const isTxt = isTextFile(entry)
-                const canOpen = isOpenableFile(entry)
-                const ShortcutIcon = isShortcut ? getShortcutIcon(entry) : null
                 const thumb = thumbnails[entry.path]
-                const showThumb = entry.type !== 'dir' && thumb
-                
+                const { Icon, color } = getFileIcon(entryName, entry.type === 'dir')
+                const ShortcutIcon = isShortcut ? getShortcutIcon(entry) : null
+
                 return (
                   <div
                     key={entry.path}
-                    className={`files-item ${selectedFile?.path === entry.path ? 'selected' : ''} ${isShortcut ? 'is-shortcut' : ''} ${canOpen ? 'is-openable' : ''}`}
-                    onClick={() => handleFileClick(entry)}
-                    onContextMenu={(e) => handleContextMenu(e, entry)}
-                    style={{ cursor: 'pointer' }}
-                    title={canOpen ? (isShortcut ? 'Click to launch app' : isTxt ? 'Click to open in Notes' : '') : ''}
+                    className={`fe-item ${selectedFile?.path === entry.path ? 'fe-item--selected' : ''} ${isShortcut ? 'fe-item--shortcut' : ''}`}
+                    onClick={e => { e.stopPropagation(); handleFileClick(entry) }}
+                    onContextMenu={e => handleContextMenu(e, entry)}
+                    title={entryName}
                   >
-                    <span className="files-icon">
-                      {entry.type === 'dir' ? (
-                        <Folder className="files-item-icon" />
-                      ) : showThumb ? (
-                        <span className="files-thumb">
-                          {thumb.type === 'image' ? (
-                            <img src={thumb.url} alt={entryName} />
-                          ) : (
-                            <video src={thumb.url} muted playsInline loop autoPlay preload="metadata" />
-                          )}
-                        </span>
+                    <div className="fe-item-icon-wrap">
+                      {thumb ? (
+                        <div className="fe-thumb">
+                          {thumb.type === 'image'
+                            ? <img src={thumb.url} alt={entryName} />
+                            : <video src={thumb.url} muted playsInline loop autoPlay preload="metadata" />
+                          }
+                        </div>
                       ) : isShortcut && ShortcutIcon ? (
-                        <ShortcutIcon className="files-item-icon files-shortcut-icon" />
+                        <ShortcutIcon size={36} style={{ color: '#0067c0' }} />
                       ) : (
-                        <FileText className="files-item-icon" />
+                        <Icon size={36} style={{ color }} />
                       )}
-                    </span>
-                    <div className="files-item-info">
-                      <span className="files-name">{entryName}</span>
-                      <span className="files-type">
-                        {entry.type === 'dir' ? 'Folder' : isShortcut ? 'App Shortcut' : isTxt ? 'Text File' : 'File'}
-                      </span>
+                      {isShortcut && <div className="fe-shortcut-badge" />}
+                    </div>
+                    <div className="fe-item-label">{entryName}</div>
+                    <div className="fe-item-type">
+                      {entry.type === 'dir' ? 'Folder' : isShortcut ? 'Shortcut' : entryName.split('.').pop().toUpperCase()}
                     </div>
                   </div>
                 )
@@ -997,229 +672,145 @@ export default function FileExplorer({ onWindowTitleChange }) {
         </div>
       </div>
 
-      {/* File Viewer Panel */}
+      {/* ── Status bar ── */}
+      <div className="fe-statusbar">
+        <span>{displayEntries.length} item{displayEntries.length !== 1 ? 's' : ''}</span>
+        {selectedFile && <span className="fe-statusbar-sep">·</span>}
+        {selectedFile && <span>{selectedFile.path.split('/').pop()} selected</span>}
+      </div>
+
+      {/* ── File viewer modal ── */}
       {fileContent && (
-        <div className="files-viewer-overlay" onClick={closeFileViewer}>
-          <div className="files-viewer" onClick={(e) => e.stopPropagation()}>
-            <div className="files-viewer-header">
-              <div className="files-viewer-title">
-                <FileText size={18} className="files-viewer-icon" />
-                <span className="files-viewer-name">{fileContent.name}</span>
+        <div className="fe-viewer-overlay" onClick={closeFileViewer}>
+          <div className="fe-viewer" onClick={e => e.stopPropagation()}>
+            <div className="fe-viewer-header">
+              <div className="fe-viewer-title">
+                {(() => { const { Icon, color } = getFileIcon(fileContent.name); return <Icon size={16} style={{ color }} /> })()}
+                <span>{fileContent.name}</span>
               </div>
-              <button
-                type="button"
-                className="files-viewer-close"
-                onClick={closeFileViewer}
-                title="Close"
-              >
-                <X size={20} />
-              </button>
+              <button className="fe-viewer-close" onClick={closeFileViewer}><X size={16} /></button>
             </div>
-            <div className="files-viewer-content">
+            <div className="fe-viewer-body">
               {isLoadingFile ? (
-                <div className="files-viewer-loading">Loading file...</div>
+                <div className="fe-viewer-loading">Loading…</div>
               ) : isImageFile(fileContent.name) ? (
-                <img
-                  className="files-viewer-media"
-                  src={fileContent.mediaUrl}
-                  alt={fileContent.name}
-                />
+                <img className="fe-viewer-media" src={fileContent.mediaUrl} alt={fileContent.name} />
               ) : isVideoFile(fileContent.name) ? (
-                <video
-                  className="files-viewer-media"
-                  src={fileContent.mediaUrl}
-                  controls
-                  preload="metadata"
-                  playsInline
-                />
+                <video className="fe-viewer-media" src={fileContent.mediaUrl} controls preload="metadata" playsInline />
               ) : (
-                <pre className="files-viewer-text">{fileContent.content || '(Empty file)'}</pre>
+                <pre className="fe-viewer-text">{fileContent.content || '(Empty file)'}</pre>
               )}
             </div>
-            <div className="files-viewer-footer">
-              <span className="files-viewer-path">{fileContent.path}</span>
-              <span className="files-viewer-size">
-                {fileContent.content ? `${fileContent.content.length} characters` : '0 bytes'}
-              </span>
+            <div className="fe-viewer-footer">
+              <span className="fe-viewer-path">{fileContent.path}</span>
+              <span>{fileContent.content ? `${fileContent.content.length} chars` : '0 bytes'}</span>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Context menu ── */}
       {contextMenu.visible && createPortal(
-        <div 
-          className="files-context-menu"
-          style={{ 
-            top: `${contextMenu.y}px`, 
-            left: `${contextMenu.x}px`
-          }}
-        >
-          <button type="button" className="files-context-item" onClick={handleCopy}>
-            <ClipboardCopy className="files-context-icon" />
-            Copy
-          </button>
-          <button type="button" className="files-context-item" onClick={handleCut}>
-            <Scissors className="files-context-icon" />
-            Cut
-          </button>
-          <button type="button" className="files-context-item" onClick={handlePaste} disabled={!clipboard}>
-            <ClipboardPaste className="files-context-icon" />
-            Paste
-          </button>
-          <div className="files-context-sep" />
-          <button type="button" className="files-context-item" onClick={handleRename}>
-            <Pencil className="files-context-icon" />
-            Rename
-          </button>
-          <button type="button" className="files-context-item" onClick={handleDelete}>
-            <Trash2 className="files-context-icon" />
-            Delete
-          </button>
-          {currentPath === RECYCLE_BIN_PATH && (
-            <button
-              type="button"
-              className="files-context-item"
-              onClick={() => {
-                restoreRecycleItem(contextMenu.targetPath)
-                setContextMenu({ visible: false, x: 0, y: 0, targetPath: null })
-              }}
-            >
-              <RotateCcw className="files-context-icon" />
-              Restore
+        <div className="fe-ctx-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+          <button className="fe-ctx-item" onClick={handleCopy}><ClipboardCopy size={14} />Copy</button>
+          <button className="fe-ctx-item" onClick={handleCut}><Scissors size={14} />Cut</button>
+          <button className="fe-ctx-item" onClick={handlePaste} disabled={!clipboard}><ClipboardPaste size={14} />Paste</button>
+          <div className="fe-ctx-sep" />
+          <button className="fe-ctx-item" onClick={handleRename}><Pencil size={14} />Rename</button>
+          <button className="fe-ctx-item fe-ctx-item--danger" onClick={handleDelete}><Trash2 size={14} />Delete</button>
+          {isRecycleBin && (
+            <button className="fe-ctx-item" onClick={() => { restoreRecycleItem(contextMenu.targetPath); setContextMenu({ visible: false, x: 0, y: 0, targetPath: null }) }}>
+              <RotateCcw size={14} />Restore
             </button>
           )}
-          <button type="button" className="files-context-item" onClick={handlePrint}>
-            <Printer className="files-context-icon" />
-            Print
-          </button>
-          <button type="button" className="files-context-item" onClick={handleShowProperties}>
-            <Info className="files-context-icon" />
-            Properties
-          </button>
+          <div className="fe-ctx-sep" />
+          <button className="fe-ctx-item" onClick={handlePrint}><Printer size={14} />Print</button>
+          <button className="fe-ctx-item" onClick={handleShowProperties}><Info size={14} />Properties</button>
         </div>,
         document.body
       )}
 
+      {/* ── Rename dialog ── */}
       {showRenameDialog && (
-        <div className="files-dialog-overlay" onClick={() => setShowRenameDialog(false)}>
-          <div className="files-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Rename File</h3>
+        <div className="fe-overlay" onClick={() => setShowRenameDialog(false)}>
+          <div className="fe-dialog" onClick={e => e.stopPropagation()}>
+            <div className="fe-dialog-header">Rename</div>
             <input
-              type="text"
-              className="files-dialog-input"
+              className="fe-dialog-input"
               value={renameName}
-              onChange={(e) => setRenameName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') confirmRename()
-                if (e.key === 'Escape') setShowRenameDialog(false)
-              }}
+              onChange={e => setRenameName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setShowRenameDialog(false) }}
               autoFocus
             />
-            <div className="files-dialog-buttons">
-              <button type="button" className="files-dialog-btn primary" onClick={confirmRename}>
-                Rename
-              </button>
-              <button type="button" className="files-dialog-btn" onClick={() => setShowRenameDialog(false)}>
-                Cancel
-              </button>
+            <div className="fe-dialog-footer">
+              <button className="fe-dialog-btn fe-dialog-btn--primary" onClick={confirmRename}>Rename</button>
+              <button className="fe-dialog-btn" onClick={() => setShowRenameDialog(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Delete confirm dialog ── */}
       {showDeleteConfirm && (
-        <div className="files-dialog-overlay" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="files-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>{currentPath === RECYCLE_BIN_PATH ? 'Permanently Delete' : 'Move to Recycle Bin'}</h3>
-            <p>
-              {currentPath === RECYCLE_BIN_PATH
-                ? `Permanently delete "${deleteTarget.split('/').pop()}"? This cannot be undone.`
-                : `Move "${deleteTarget.split('/').pop()}" to Recycle Bin?`}
+        <div className="fe-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="fe-dialog" onClick={e => e.stopPropagation()}>
+            <div className="fe-dialog-header">
+              {isRecycleBin ? 'Delete permanently' : 'Move to Recycle Bin'}
+            </div>
+            <p className="fe-dialog-body">
+              {isRecycleBin
+                ? `"${deleteTarget?.split('/').pop()}" will be permanently deleted.`
+                : `"${deleteTarget?.split('/').pop()}" will be moved to the Recycle Bin.`}
             </p>
-            <div className="files-dialog-buttons">
-              <button type="button" className="files-dialog-btn danger" onClick={confirmDelete}>
-                {currentPath === RECYCLE_BIN_PATH ? 'Delete Permanently' : 'Move to Recycle Bin'}
+            <div className="fe-dialog-footer">
+              <button className="fe-dialog-btn fe-dialog-btn--danger" onClick={confirmDelete}>
+                {isRecycleBin ? 'Delete' : 'Move to Recycle Bin'}
               </button>
-              <button type="button" className="files-dialog-btn" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
-              </button>
+              <button className="fe-dialog-btn" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Properties dialog ── */}
       {showPropertiesDialog && propertiesData && (
-        <div className="files-dialog-overlay" onClick={() => setShowPropertiesDialog(false)}>
-          <div className="files-dialog files-properties-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>Properties</h3>
-            <div className="files-properties">
+        <div className="fe-overlay" onClick={() => setShowPropertiesDialog(false)}>
+          <div className="fe-dialog fe-dialog--wide" onClick={e => e.stopPropagation()}>
+            <div className="fe-dialog-header">Properties — {propertiesData.name}</div>
+            <div className="fe-props">
               {propertiesData.error ? (
-                <div className="files-prop-row">
-                  <span className="files-prop-label">Error:</span>
-                  <span className="files-prop-value">{propertiesData.error}</span>
-                </div>
+                <div className="fe-prop-row"><span className="fe-prop-label">Error</span><span>{propertiesData.error}</span></div>
               ) : (
                 <>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Name:</span>
-                    <span className="files-prop-value">{propertiesData.name}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Location:</span>
-                    <span className="files-prop-value">{propertiesData.path}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Type:</span>
-                    <span className="files-prop-value">{propertiesData.type}</span>
-                  </div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Name</span><span>{propertiesData.name}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Location</span><span className="fe-prop-mono">{propertiesData.path}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Type</span><span>{propertiesData.type}</span></div>
                   {propertiesData.type !== 'Directory' && (
-                    <div className="files-prop-row">
-                      <span className="files-prop-label">Size:</span>
-                      <span className="files-prop-value">{propertiesData.size_display} ({propertiesData.size_bytes} bytes)</span>
-                    </div>
+                    <div className="fe-prop-row"><span className="fe-prop-label">Size</span><span>{propertiesData.size_display} ({propertiesData.size_bytes} bytes)</span></div>
                   )}
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Owner:</span>
-                    <span className="files-prop-value">{propertiesData.owner}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Computer:</span>
-                    <span className="files-prop-value">{propertiesData.computer}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Created:</span>
-                    <span className="files-prop-value">{new Date(propertiesData.created).toLocaleString()}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Modified:</span>
-                    <span className="files-prop-value">{new Date(propertiesData.modified).toLocaleString()}</span>
-                  </div>
-                  <div className="files-prop-row">
-                    <span className="files-prop-label">Attributes:</span>
-                    <span className="files-prop-value">{propertiesData.attributes}</span>
-                  </div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Owner</span><span>{propertiesData.owner}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Computer</span><span>{propertiesData.computer}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Created</span><span>{new Date(propertiesData.created).toLocaleString()}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Modified</span><span>{new Date(propertiesData.modified).toLocaleString()}</span></div>
+                  <div className="fe-prop-row"><span className="fe-prop-label">Attributes</span><span>{propertiesData.attributes}</span></div>
                 </>
               )}
             </div>
-            <div className="files-dialog-buttons">
-              <button type="button" className="files-dialog-btn" onClick={() => setShowPropertiesDialog(false)}>
-                Close
-              </button>
+            <div className="fe-dialog-footer">
+              <button className="fe-dialog-btn fe-dialog-btn--primary" onClick={() => setShowPropertiesDialog(false)}>Close</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Print preview ── */}
       {showPrintPreview && printPreviewData && (
         <PrintPreviewDialog
           content={printPreviewData.content}
           fileName={printPreviewData.fileName}
           pages={printPreviewData.pages}
           onPrint={handleSubmitPrint}
-          onCancel={() => {
-            setShowPrintPreview(false)
-            setPrintPreviewData(null)
-          }}
+          onCancel={() => { setShowPrintPreview(false); setPrintPreviewData(null) }}
         />
       )}
     </div>
