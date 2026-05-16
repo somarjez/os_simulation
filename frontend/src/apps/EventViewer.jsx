@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Download, RefreshCw, Trash2 } from 'lucide-react';
 import '../styles/apps/event-viewer.css';
 
 const EventViewerApp = () => {
@@ -212,17 +213,21 @@ const EventViewerApp = () => {
         </div>
 
         <div className="toolbar-actions">
-          <button onClick={handleRefresh} className="toolbar-btn">
-            ↻ Refresh
+          <button onClick={handleRefresh} className="toolbar-btn toolbar-btn-refresh">
+            <RefreshCw className="toolbar-btn-icon" size={14} strokeWidth={3.2} aria-hidden="true" />
+            <span>Refresh</span>
           </button>
-          <button onClick={handleExport} className="toolbar-btn">
-            ⬇ Export
+          <button onClick={handleExport} className="toolbar-btn toolbar-btn-export">
+            <Download className="toolbar-btn-icon" size={14} strokeWidth={3.2} aria-hidden="true" />
+            <span>Export</span>
           </button>
-          <button onClick={handleClearOld} className="toolbar-btn">
-            🗑 Clear Old
+          <button onClick={handleClearOld} className="toolbar-btn toolbar-btn-clear">
+            <Trash2 className="toolbar-btn-icon" size={14} strokeWidth={3.2} aria-hidden="true" />
+            <span>Clear Old</span>
           </button>
           <button onClick={handleClearAll} className="toolbar-btn toolbar-btn-danger">
-            🗑 Clear All
+            <Trash2 className="toolbar-btn-icon" size={14} strokeWidth={3.2} aria-hidden="true" />
+            <span>Clear All</span>
           </button>
         </div>
       </div>
@@ -257,7 +262,6 @@ const EventViewerApp = () => {
                       }`}
                     >
                       <td className="event-level">
-                        <span className="level-icon">{getLevelIcon(event.level)}</span>
                         {event.level}
                       </td>
                       <td className="event-time">{formatTimestamp(event.timestamp)}</td>
@@ -310,7 +314,7 @@ const EventViewerApp = () => {
               <div className="detail-row">
                 <span className="detail-label">Level:</span>
                 <span className="detail-value">
-                  {getLevelIcon(selectedEvent.level)} {selectedEvent.level}
+                  {selectedEvent.level}
                 </span>
               </div>
               <div className="detail-row">
@@ -339,18 +343,20 @@ const EventViewerApp = () => {
                   <span className="detail-value">{selectedEvent.username}</span>
                 </div>
               )}
-              {selectedEvent.details && (
-                <div className="detail-row">
-                  <span className="detail-label">Details:</span>
+              <div className="detail-row detail-row-details">
+                <span className="detail-label">Details:</span>
+                {selectedEvent.details ? (
                   <pre className="detail-value detail-json">
                     {JSON.stringify(selectedEvent.details, null, 2)}
                   </pre>
-                </div>
-              )}
+                ) : (
+                  <div className="detail-value detail-json detail-json-empty" />
+                )}
+              </div>
               {selectedEvent.stack_trace && (
-                <div className="detail-row">
+                <div className="detail-row detail-row-details">
                   <span className="detail-label">Stack Trace:</span>
-                  <pre className="detail-value detail-stack">
+                  <pre className="detail-value detail-json">
                     {selectedEvent.stack_trace}
                   </pre>
                 </div>
