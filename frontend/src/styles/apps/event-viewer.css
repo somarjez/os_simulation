@@ -34,6 +34,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 700;
   overflow: hidden;
+  container-type: inline-size;
 }
 
 :root[data-theme='light'] .event-viewer {
@@ -109,6 +110,7 @@
 .toolbar-actions {
   justify-content: flex-end;
   gap: 18px;
+  min-width: 0;
 }
 
 .filter-select {
@@ -670,5 +672,130 @@
   .event-table thead,
   .event-table tr {
     min-width: 780px;
+  }
+}
+
+@container (max-width: 1080px) {
+  .event-viewer-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    min-height: auto;
+    padding: 14px 18px 12px;
+  }
+
+  .toolbar-filters,
+  .toolbar-actions {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .filter-select {
+    flex: 1 1 145px;
+    min-width: 0;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .toolbar-btn {
+    flex: 1 1 124px;
+    min-width: 0;
+  }
+
+  .event-viewer-content {
+    padding: 0 14px 14px;
+  }
+}
+
+@container (max-width: 900px) {
+  .event-viewer-content {
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .event-viewer-content:has(.event-details) .event-list,
+  .event-list {
+    flex: 0 0 auto;
+    min-height: 320px;
+  }
+
+  .event-table {
+    min-height: 270px;
+    overflow-x: auto;
+  }
+
+  .event-table thead,
+  .event-table tr {
+    min-width: 760px;
+  }
+
+  .event-table tbody {
+    min-width: 760px;
+    height: 236px;
+  }
+
+  .event-details {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+    align-self: stretch;
+    height: auto;
+    max-height: 360px;
+  }
+
+  .event-viewer .details-content {
+    max-height: 310px;
+  }
+}
+
+@container (max-width: 560px) {
+  .event-viewer-toolbar {
+    padding: 12px;
+  }
+
+  .toolbar-filters,
+  .toolbar-actions {
+    gap: 8px;
+  }
+
+  .filter-select,
+  .toolbar-btn {
+    flex-basis: 100%;
+  }
+
+  .event-viewer-content {
+    padding: 0 10px 10px;
+  }
+
+  .event-table th,
+  .event-table td {
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+
+  .event-pagination {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    min-height: auto;
+    padding-top: 8px;
+  }
+
+  .page-btn {
+    width: 100%;
+    min-height: 28px;
+  }
+
+  .page-info {
+    order: -1;
+    text-align: center;
+  }
+
+  .event-viewer .detail-row {
+    padding-inline: 16px;
   }
 }
