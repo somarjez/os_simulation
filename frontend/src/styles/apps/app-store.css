@@ -98,7 +98,7 @@
 
   position: relative;
   width: min(calc(100% - 80px), 1780px);
-  min-height: 306px;
+  min-height: clamp(180px, 22vw, 306px);
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
@@ -141,7 +141,7 @@
   top: -88px;
   right: -148px;
   z-index: 1;
-  width: clamp(590px, 45vw, 800px);
+  width: clamp(300px, 45vw, 800px);
   height: calc(100% + 138px);
   object-fit: cover;
   object-position: right center;
@@ -152,8 +152,8 @@
 .app-store-hero-copy {
   position: relative;
   z-index: 2;
-  max-width: min(58%, 650px);
-  padding: 12px 0 0 36px;
+  max-width: min(60%, 650px);
+  padding: clamp(8px, 2vw, 12px) 0 0 clamp(16px, 3vw, 36px);
 }
 
 .app-store-hero-copy::before,
@@ -236,7 +236,7 @@
 .app-store-hero h1 {
   margin: 0;
   color: var(--store-hero-title);
-  font-size: 58px;
+  font-size: clamp(26px, 4.5vw, 58px);
   line-height: 1.08;
   font-weight: 900;
   letter-spacing: 0;
@@ -283,10 +283,10 @@
 }
 
 .app-store-panel {
-  width: calc(100% - 36px);
+  width: 100%;
   margin: 12px auto 0;
   flex: 1 0 auto;
-  min-height: 321px;
+  min-height: 200px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -303,7 +303,7 @@
   align-items: center;
   gap: 26px;
   height: 32px;
-  padding: 0 45px;
+  padding: 0 clamp(14px, 4vw, 45px);
 }
 
 .app-store-tabs::after {
@@ -334,13 +334,13 @@
 }
 
 .app-store-content {
-  padding: 27px 39px 14px;
+  padding: clamp(14px, 3vw, 27px) clamp(12px, 3.5vw, 39px) 14px;
 }
 
 .app-store-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 19px clamp(30px, 7.4vw, 72px);
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 19px clamp(12px, 3vw, 40px);
 }
 
 .app-store-empty {
@@ -604,48 +604,121 @@
   color: #ffffff;
 }
 
-@media (max-width: 720px) {
-  .app-store {
-    padding: 12px;
-  }
-
+/* ── 860px: hero starts shrinking, grid 3-col ── */
+@media (max-width: 860px) {
   .app-store-hero {
     width: 100%;
-    min-height: 198px;
     margin-left: 0;
     margin-right: 0;
-    transform: none;
     overflow: hidden;
   }
 
   .app-store-hero-art {
-    top: -28px;
-    width: 74%;
-    right: -34px;
-    height: calc(100% + 50px);
-    opacity: 1;
+    right: -60px;
+    width: clamp(220px, 52%, 480px);
+    top: -40px;
+    height: calc(100% + 60px);
   }
 
   .app-store-hero-copy {
-    max-width: 58%;
-    padding: 10px 18px 18px;
+    max-width: 56%;
   }
 
-  .app-store-hero h1 {
-    font-size: 32px;
+  .app-store-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
+/* ── 600px: hero compact, grid 2-col ── */
+@media (max-width: 600px) {
+  .app-store {
+    padding: 10px;
   }
 
-  .app-store-panel {
-    width: 100%;
-    margin-left: 0;
+  .app-store-hero {
+    min-height: 160px;
   }
 
-  .app-store-content {
-    padding: 18px 14px 14px;
+  .app-store-hero-art {
+    width: 58%;
+    right: -20px;
+    top: -20px;
+    height: calc(100% + 30px);
+  }
+
+  .app-store-hero-copy {
+    max-width: 52%;
+    padding: 10px 0 10px 14px;
+  }
+
+  .app-store-eyebrow {
+    margin-bottom: 12px;
+    font-size: 9px;
+  }
+
+  .app-store-hero p {
+    display: none;
+  }
+
+  .app-store-hero-button {
+    height: 30px;
+    min-width: 130px;
+    font-size: 14px;
   }
 
   .app-store-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px 18px;
+    gap: 12px 14px;
+  }
+
+  .app-store-item {
+    height: 180px;
+    padding: 16px 10px 12px;
+  }
+
+  .app-store-icon,
+  .app-store-icon img {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* ── 380px: single column ── */
+@media (max-width: 380px) {
+  .app-store-hero {
+    min-height: 130px;
+  }
+
+  .app-store-hero h1 {
+    font-size: 22px;
+  }
+
+  .app-store-hero-copy {
+    max-width: 58%;
+  }
+
+  .app-store-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-store-item {
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .app-store-info {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .app-store-name,
+  .app-store-version,
+  .app-store-description,
+  .app-store-storage,
+  .app-store-category {
+    text-align: left;
   }
 }
