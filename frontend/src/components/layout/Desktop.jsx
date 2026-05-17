@@ -218,9 +218,6 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
   const [recentApps, setRecentApps] = useState([])
   const [taskbarSearchQuery, setTaskbarSearchQuery] = useState('')
   const [updateStatus, setUpdateStatus] = useState(null)
-  const [viewMenu, setViewMenu] = useState({ visible: false, x: 0, y: 0 })
-  const [sortMenu, setSortMenu] = useState({ visible: false, x: 0, y: 0 })
-  const [newMenu, setNewMenu] = useState({ visible: false, x: 0, y: 0 })
   const [desktopSortMode, setDesktopSortMode] = useState(DESKTOP_SORT_MODES.name)
   const [isRefreshingDesktop, setIsRefreshingDesktop] = useState(false)
   const [desktopViewSettings, setDesktopViewSettings] = useState(() => loadDesktopViewSettings())
@@ -299,18 +296,6 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
     refreshAnimationTimeoutRef.current = setTimeout(() => {
       setIsRefreshingDesktop(false)
     }, 220)
-  }
-
-  const closeViewMenu = () => {
-    setViewMenu((previous) => ({ ...previous, visible: false }))
-  }
-
-  const closeSortMenu = () => {
-    setSortMenu((previous) => ({ ...previous, visible: false }))
-  }
-
-  const closeNewMenu = () => {
-    setNewMenu((previous) => ({ ...previous, visible: false }))
   }
 
   const parseDateValue = (value) => {
@@ -1457,22 +1442,9 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
     }
   }
 
-  const openViewMenu = () => {
-    setViewMenu({ visible: true, x: contextMenu.x + 278, y: contextMenu.y })
-  }
-
-  const openSortMenu = () => {
-    setSortMenu({ visible: true, x: contextMenu.x + 278, y: contextMenu.y + 44 })
-  }
-
-  const openNewMenu = () => {
-    setNewMenu({ visible: true, x: contextMenu.x + 278, y: contextMenu.y + 88 })
-  }
-
   const closeAllMenus = () => {
-    closeViewMenu()
-    closeSortMenu()
-    closeNewMenu()
+    // Submenus are now handled internally by ContextMenu component
+    // No need to close them separately
   }
 
   const viewMenuItems = useMemo(() => [
@@ -1529,36 +1501,24 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
     {
       label: 'Name',
       checked: desktopSortMode === DESKTOP_SORT_MODES.name,
-      onClick: () => {
-        applyDesktopSort(DESKTOP_SORT_MODES.name)
-        closeSortMenu()
-      }
+      onClick: () => applyDesktopSort(DESKTOP_SORT_MODES.name)
     },
     {
       label: 'Size',
       checked: desktopSortMode === DESKTOP_SORT_MODES.size,
-      onClick: () => {
-        applyDesktopSort(DESKTOP_SORT_MODES.size)
-        closeSortMenu()
-      }
+      onClick: () => applyDesktopSort(DESKTOP_SORT_MODES.size)
     },
     {
       label: 'Item type',
       checked: desktopSortMode === DESKTOP_SORT_MODES.type,
-      onClick: () => {
-        applyDesktopSort(DESKTOP_SORT_MODES.type)
-        closeSortMenu()
-      }
+      onClick: () => applyDesktopSort(DESKTOP_SORT_MODES.type)
     },
     {
       label: 'Date modified',
       checked: desktopSortMode === DESKTOP_SORT_MODES.modified,
-      onClick: () => {
-        applyDesktopSort(DESKTOP_SORT_MODES.modified)
-        closeSortMenu()
-      }
+      onClick: () => applyDesktopSort(DESKTOP_SORT_MODES.modified)
     }
-  ], [desktopSortMode, applyDesktopSort, closeSortMenu])
+  ], [desktopSortMode, applyDesktopSort])
 
   const newMenuItems = useMemo(() => [
     {
@@ -1578,21 +1538,18 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
   const handleContextMenu = (event) => {
     event.preventDefault()
     closeAllMenus()
-    closeNewMenu()
     const items = [
       {
         label: 'View',
         icon: LayoutGrid,
         hasSubmenu: true,
-        keepOpen: true,
-        onClick: openViewMenu
+        submenu: viewMenuItems
       },
       {
         label: 'Sort by',
         icon: ArrowUpDown,
         hasSubmenu: true,
-        keepOpen: true,
-        onClick: openSortMenu
+        submenu: sortMenuItems
       },
       {
         label: 'Refresh',
@@ -1604,8 +1561,7 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
         label: 'New',
         icon: PlusCircle,
         hasSubmenu: true,
-        keepOpen: true,
-        onClick: openNewMenu
+        submenu: newMenuItems
       },
       { separator: true },
       {
@@ -1623,11 +1579,6 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
         label: 'Open in Terminal',
         icon: Terminal,
         onClick: () => launchAppById('terminal', { startMaximized: false })
-      },
-      {
-        label: 'Show more options',
-        icon: Ellipsis,
-        onClick: () => resetDesktopLayout()
       }
     ]
     setContextMenuItems(items)
@@ -1757,30 +1708,6 @@ export default function Desktop({ user, onLogout, onLock, onRestart, onShutdown,
           x={contextMenu.x}
           y={contextMenu.y}
           items={contextMenuItems}
-          onClose={closeContextMenu}
-        />
-
-        <ContextMenu
-          visible={viewMenu.visible}
-          x={viewMenu.x}
-          y={viewMenu.y}
-          items={viewMenuItems}
-          onClose={closeContextMenu}
-        />
-
-        <ContextMenu
-          visible={sortMenu.visible}
-          x={sortMenu.x}
-          y={sortMenu.y}
-          items={sortMenuItems}
-          onClose={closeContextMenu}
-        />
-
-        <ContextMenu
-          visible={newMenu.visible}
-          x={newMenu.x}
-          y={newMenu.y}
-          items={newMenuItems}
           onClose={closeContextMenu}
         />
 

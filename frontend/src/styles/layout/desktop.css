@@ -276,9 +276,33 @@
    ============================================================================ */
 
 .context-menu {
-  position: absolute;
+  position: fixed;
   z-index: 2000;
   min-width: 276px;
+  background: rgba(42, 42, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 6px;
+  display: grid;
+  gap: 1px;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(24px) saturate(130%);
+  overflow: visible;
+}
+
+/* Context Menu Item Wrapper - handles submenu positioning */
+.context-menu-item-wrapper {
+  position: relative;
+}
+
+/* Submenu with dynamic positioning (left or right) */
+.context-submenu {
+  position: fixed;
+  z-index: 2001;
+  min-width: 200px;
+  max-width: 280px;
   background: rgba(42, 42, 42, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
@@ -289,6 +313,37 @@
     0 16px 40px rgba(0, 0, 0, 0.45),
     0 1px 0 rgba(255, 255, 255, 0.08) inset;
   backdrop-filter: blur(24px) saturate(130%);
+  overflow: hidden;
+  animation: submenuFadeIn 0.12s ease-out;
+  will-change: left, top;
+}
+
+.context-menu-hover-bridge {
+  position: fixed;
+  z-index: 2000;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* Smooth fade-in animation for submenu */
+@keyframes submenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Submenu positioning variants */
+.context-submenu-right {
+  transform-origin: left center;
+}
+
+.context-submenu-left {
+  transform-origin: right center;
 }
 
 .context-menu-item {
@@ -303,6 +358,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  transition: background-color 0.12s ease-out;
+  width: 100%;
 }
 
 .context-menu-item-left,
@@ -315,9 +372,22 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Highlight item when its submenu is active */
+.context-menu-item.has-active-submenu {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.context-menu-item.has-active-submenu:hover {
+  background: rgba(37, 99, 235, 0.18);
+}
+
 .context-menu-item:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.context-menu-item:disabled:hover {
+  background: transparent;
 }
 
 .context-menu-item-left {
