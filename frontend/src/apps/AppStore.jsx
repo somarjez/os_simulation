@@ -97,7 +97,7 @@ export default function AppStore() {
     if (!confirm(`Uninstall ${appName}?`)) return
 
     try {
-      const response = await fetch(`http://localhost:8000/app/uninstall?app_id=${appId}`, {
+      const response = await fetch(`http://localhost:8000/app/uninstall?app_id=${encodeURIComponent(appId)}`, {
         method: 'DELETE'
       })
 
