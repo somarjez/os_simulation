@@ -338,38 +338,47 @@ def install_app(app_manifest: dict):
     if not app_id:
         raise HTTPException(status_code=400, detail="App ID is required")
     
-    # Check if already installed
-    cursor.execute("SELECT 1 FROM apps WHERE id = ?", (app_id,))
-    if cursor.fetchone() is not None:
-        raise HTTPException(status_code=409, detail="App already installed")
-    
     # Validate required fields
     required = ["name", "version", "category"]
     for field in required:
         if field not in app_manifest:
             raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
-    
-    # Install the app
-    cursor.execute(
-        """
-        INSERT INTO apps 
-        (id, name, version, description, icon, category, builtin, installed, permissions, installed_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            app_id,
-            app_manifest["name"],
-            app_manifest["version"],
-            app_manifest.get("description", ""),
-            app_manifest.get("icon", "Box"),
-            app_manifest["category"],
-            0,  # not builtin
-            1,  # installed
-            ",".join(app_manifest.get("permissions", [])),
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat()
+
+    # Check for existing row (covers re-install after uninstall)
+    cursor.execute("SELECT installed, builtin FROM apps WHERE id = ?", (app_id,))
+    existing = cursor.fetchone()
+
+    if existing is not None:
+        if existing["installed"]:
+            conn.close()
+            raise HTTPException(status_code=409, detail="App already installed")
+        # Row exists but was previously uninstalled — just re-enable it
+        cursor.execute(
+            "UPDATE apps SET installed = 1, installed_at = ? WHERE id = ?",
+            (datetime.utcnow().isoformat(), app_id)
         )
-    )
+    else:
+        # Fresh install
+        cursor.execute(
+            """
+            INSERT INTO apps
+            (id, name, version, description, icon, category, builtin, installed, permissions, installed_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                app_id,
+                app_manifest["name"],
+                app_manifest["version"],
+                app_manifest.get("description", ""),
+                app_manifest.get("icon", "Box"),
+                app_manifest["category"],
+                0,  # not builtin
+                1,  # installed
+                ",".join(app_manifest.get("permissions", [])),
+                datetime.utcnow().isoformat(),
+                datetime.utcnow().isoformat()
+            )
+        )
     conn.commit()
     conn.close()
     
@@ -389,15 +398,17 @@ def uninstall_app(app_id: str = Query(...)):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Check if app exists
-    cursor.execute("SELECT * FROM apps WHERE id = ?", (app_id,))
+    # Check if app exists and is currently installed
+    cursor.execute("SELECT * FROM apps WHERE id = ? AND installed = 1", (app_id,))
     app = cursor.fetchone()
-    
+
     if app is None:
+        conn.close()
         raise HTTPException(status_code=404, detail="App not found")
-    
+
     # Prevent uninstalling built-in apps
     if app["builtin"]:
+        conn.close()
         raise HTTPException(status_code=403, detail="Cannot uninstall built-in applications")
     
     # Mark as uninstalled instead of deleting
