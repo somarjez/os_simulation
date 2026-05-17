@@ -53,7 +53,165 @@ const APP_SHORTCUT_ICONS = {
   diagnostics: Stethoscope,
 }
 
+const APP_DESKTOP_ICON_SOURCES = {
+  terminal: '/desktop-icons/terminal.png',
+  files: '/desktop-icons/files.png',
+  localfiles: '/desktop-icons/localfiles.png',
+  notes: '/desktop-icons/notes.png',
+  settings: '/desktop-icons/settings-exact.svg',
+  monitor: '/desktop-icons/monitor.png',
+  appstore: '/desktop-icons/appstore.png',
+  eventviewer: '/desktop-icons/eventviewer.png',
+  diagnostics: '/desktop-icons/diagnostics.png',
+  calculator: '/desktop-icons/calculator.png',
+  camera: '/desktop-icons/camera.png',
+  clock: '/desktop-icons/clock.png',
+  calendar: '/desktop-icons/calendar.png',
+  tips: '/desktop-icons/tips.png',
+  webbrowser: '/desktop-icons/webbrowser.png',
+  armourycrate: '/desktop-icons/armourycrate.png',
+  minesweeper: '/desktop-icons/minesweeper.svg',
+  solitaire: '/desktop-icons/solitaire.svg',
+}
+
 const RECYCLE_BIN_PATH = '/home/user/.recycle_bin'
+const FE_ICON_BASE = '/file-explorer-icons'
+
+const FE_ASSETS = {
+  home: `${FE_ICON_BASE}/HOME.svg`,
+  desktop: `${FE_ICON_BASE}/DESKTOP.svg`,
+  downloads: `${FE_ICON_BASE}/DOWNLOAD.svg`,
+  downloadsSidebar: `${FE_ICON_BASE}/ArrowLineUp.svg`,
+  documents: `${FE_ICON_BASE}/DOCUMENTS.svg`,
+  pictures: `${FE_ICON_BASE}/PICTURES.svg`,
+  music: `${FE_ICON_BASE}/MUSIC.svg`,
+  videos: `${FE_ICON_BASE}/VIDEOS.svg`,
+  notes: `${FE_ICON_BASE}/NOTES.svg`,
+  folder: `${FE_ICON_BASE}/FOLDER.svg`,
+  text: `${FE_ICON_BASE}/image 57.svg`,
+  recycle: `${FE_ICON_BASE}/RECYCLE%20BIN.svg`,
+  pc: `${FE_ICON_BASE}/THIS%20PC.svg`,
+  network: `${FE_ICON_BASE}/NETWORK.svg`,
+  upLine: `${FE_ICON_BASE}/ArrowUp.svg`,
+  search: `${FE_ICON_BASE}/MagnifyingGlass.svg`,
+  copy: `${FE_ICON_BASE}/Copy.svg`,
+  cut: `${FE_ICON_BASE}/Scissors.svg`,
+  rename: `${FE_ICON_BASE}/PencilSimple.svg`,
+  newFile: `${FE_ICON_BASE}/FilePlus.svg`,
+  newFolder: `${FE_ICON_BASE}/FolderSimplePlus.svg`,
+  paste: `${FE_ICON_BASE}/Group 1060.svg`,
+}
+
+const AssetIcon = ({ src, alt = '', className = '', size = 16 }) => (
+  <img
+    className={`fe-asset-icon ${className}`.trim()}
+    src={src}
+    alt={alt}
+    aria-hidden={alt ? undefined : true}
+    style={{ width: size, height: size }}
+  />
+)
+
+const SidebarAssetIcon = ({ item }) => (
+  <span className="fe-sidebar-icon-slot">
+    {item.sidebarAsset || item.asset ? (
+      <AssetIcon src={item.sidebarAsset ?? item.asset} className="fe-sidebar-icon" size={item.sidebarIconSize ?? 22} />
+    ) : (
+      <item.icon size={22} className="fe-sidebar-icon" />
+    )}
+  </span>
+)
+
+const getExplorerAssetKey = (name = '', isDir = false) => {
+  const lower = name.toLowerCase()
+  if (lower === 'home') return 'home'
+  if (lower === 'desktop') return 'folder'
+  if (lower === 'downloads') return 'downloads'
+  if (lower === 'documents') return 'documents'
+  if (lower === 'pictures') return 'pictures'
+  if (lower === 'music') return 'music'
+  if (lower === 'videos') return 'videos'
+  if (lower === 'notes') return 'folder'
+  if (lower === 'notes.txt') return 'notes'
+  if (lower === 'recycle bin') return 'recycle'
+  if (lower === 'this pc') return 'pc'
+  if (lower === 'network') return 'network'
+  if (isDir) return 'folder'
+  if (['txt', 'md'].includes(lower.split('.').pop())) return 'text'
+  return null
+}
+
+const getExplorerAsset = (name = '', isDir = false) => {
+  const key = getExplorerAssetKey(name, isDir)
+  return key ? FE_ASSETS[key] : null
+}
+
+const HOME_ENTRY_ORDER = ['desktop', 'downloads', 'documents', 'pictures', 'music', 'videos', 'notes', 'notes.txt']
+const THIS_PC_ENTRY_ORDER = ['folder', 'bin', 'system', 'network', 'home']
+const THIS_PC_VIRTUAL_ENTRIES = [
+  { path: '/network', type: 'dir', displayName: 'Network', assetName: 'Network', isThisPcVirtual: true },
+  { path: '/home/user', type: 'dir', displayName: 'Home', assetName: 'Home', isThisPcVirtual: true },
+]
+
+const normalizeShortcutName = (name = '') => name.replace(/\.lnk$/i, '').replace(/[^a-z0-9]/gi, '').toLowerCase()
+
+const getEntryName = (entry) => {
+  if (entry.displayName) return entry.displayName
+  const fileName = entry.path.split('/').pop()
+  return entry.type === 'file' && fileName.endsWith('.lnk') ? fileName.replace(/\.lnk$/i, '') : fileName
+}
+
+const getEntryAssetName = (entry) => entry.assetName || getEntryName(entry)
+
+const getThisPcEntriesForDisplay = (items) => {
+  const normalized = items.map(entry => {
+    const name = entry.path.split('/').pop()
+    if (entry.path === '/home' || name.toLowerCase() === 'home') {
+      return { ...entry, displayName: 'Folder', assetName: 'Folder' }
+    }
+    if (entry.path === '/network' || name.toLowerCase() === 'network') {
+      return { ...entry, displayName: 'Network', assetName: 'Network' }
+    }
+    return entry
+  })
+
+  const entriesByPath = new Map(normalized.map(entry => [entry.path, entry]))
+  THIS_PC_VIRTUAL_ENTRIES.forEach(entry => {
+    if (!entriesByPath.has(entry.path)) entriesByPath.set(entry.path, entry)
+  })
+
+  return [...entriesByPath.values()].sort((a, b) => {
+    const aName = getEntryName(a).toLowerCase()
+    const bName = getEntryName(b).toLowerCase()
+    const aIndex = THIS_PC_ENTRY_ORDER.indexOf(aName)
+    const bIndex = THIS_PC_ENTRY_ORDER.indexOf(bName)
+
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex)
+    }
+
+    return aName.localeCompare(bName)
+  })
+}
+
+const orderEntriesForDisplay = (items, path, searching) => {
+  if (searching) return items
+  if (path === '/') return getThisPcEntriesForDisplay(items)
+  if (path !== '/home/user') return items
+
+  return [...items].sort((a, b) => {
+    const aName = getEntryName(a).toLowerCase()
+    const bName = getEntryName(b).toLowerCase()
+    const aIndex = HOME_ENTRY_ORDER.indexOf(aName)
+    const bIndex = HOME_ENTRY_ORDER.indexOf(bName)
+
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex)
+    }
+
+    return aName.localeCompare(bName)
+  })
+}
 
 const getFileIcon = (name = '', isDir = false) => {
   if (isDir) return { Icon: Folder, color: '#e8a020' }
@@ -96,16 +254,16 @@ export default function FileExplorer({ onWindowTitleChange }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const quickAccessItems = [
-    { name: 'Home',        path: '/home/user',             icon: Home,      group: 'quick' },
-    { name: 'Desktop',     path: '/home/user/Desktop',     icon: Home,      group: 'quick' },
-    { name: 'Downloads',   path: '/home/user/Downloads',   icon: Download,  group: 'quick' },
-    { name: 'Documents',   path: '/home/user/Documents',   icon: FileText,  group: 'quick' },
-    { name: 'Pictures',    path: '/home/user/Pictures',    icon: FileImage, group: 'quick' },
-    { name: 'Music',       path: '/home/user/Music',       icon: Music,     group: 'quick' },
-    { name: 'Videos',      path: '/home/user/Videos',      icon: Video,     group: 'quick' },
-    { name: 'Recycle Bin', path: RECYCLE_BIN_PATH,         icon: Trash2,    group: 'this-pc' },
-    { name: 'This PC',     path: '/',                      icon: HardDrive, group: 'this-pc' },
-    { name: 'Network',     path: '/network',               icon: Network,   group: 'this-pc' },
+    { name: 'Home',        path: '/home/user',             icon: Home,      asset: FE_ASSETS.home,      sidebarIconSize: 54, group: 'quick' },
+    { name: 'Desktop',     path: '/home/user/Desktop',     icon: Home,      asset: FE_ASSETS.desktop,   group: 'quick' },
+    { name: 'Downloads',   path: '/home/user/Downloads',   icon: Download,  asset: FE_ASSETS.downloads, sidebarAsset: FE_ASSETS.downloadsSidebar, sidebarIconSize: 22, group: 'quick' },
+    { name: 'Documents',   path: '/home/user/Documents',   icon: FileText,  asset: FE_ASSETS.documents, sidebarIconSize: 84, group: 'quick' },
+    { name: 'Pictures',    path: '/home/user/Pictures',    icon: FileImage, asset: FE_ASSETS.pictures,  group: 'quick' },
+    { name: 'Music',       path: '/home/user/Music',       icon: Music,     asset: FE_ASSETS.music,     group: 'quick' },
+    { name: 'Videos',      path: '/home/user/Videos',      icon: Video,     asset: FE_ASSETS.videos,    sidebarIconSize: 84, group: 'quick' },
+    { name: 'Recycle Bin', path: RECYCLE_BIN_PATH,         icon: Trash2,    asset: FE_ASSETS.recycle,   group: 'this-pc' },
+    { name: 'This PC',     path: '/',                      icon: HardDrive, asset: FE_ASSETS.pc,        group: 'this-pc' },
+    { name: 'Network',     path: '/network',               icon: Network,   asset: FE_ASSETS.network,   sidebarIconSize: 54, group: 'this-pc' },
   ]
 
   useEffect(() => { loadDirectory(currentPath); setSearchQuery(''); setIsSearching(false) }, [currentPath])
@@ -434,11 +592,19 @@ export default function FileExplorer({ onWindowTitleChange }) {
   const isTextFile = (entry) => entry.type === 'file' && entry.path.endsWith('.txt')
 
   const getShortcutIcon = (entry) => {
-    const name = entry.path.split('/').pop().replace('.lnk', '').toLowerCase()
+    const name = normalizeShortcutName(entry.path.split('/').pop())
     for (const [key, Icon] of Object.entries(APP_SHORTCUT_ICONS)) {
       if (name.includes(key)) return Icon
     }
     return FileText
+  }
+
+  const getShortcutIconSrc = (entry) => {
+    const name = normalizeShortcutName(entry.path.split('/').pop())
+    for (const [key, src] of Object.entries(APP_DESKTOP_ICON_SOURCES)) {
+      if (name.includes(key)) return src
+    }
+    return null
   }
 
   useEffect(() => {
@@ -452,7 +618,7 @@ export default function FileExplorer({ onWindowTitleChange }) {
   }, [contextMenu.visible])
 
   const breadcrumbs = getBreadcrumbs()
-  const displayEntries = isSearching ? searchResults : entries
+  const displayEntries = orderEntriesForDisplay(isSearching ? searchResults : entries, currentPath, isSearching)
   const isRecycleBin = currentPath === RECYCLE_BIN_PATH
 
   return (
@@ -461,38 +627,38 @@ export default function FileExplorer({ onWindowTitleChange }) {
       {/* ── Command bar ── */}
       <div className="fe-commandbar">
         <button className="fe-cmd-btn" onClick={handleGoUp} title="Up">
-          <ArrowUp size={15} />
+          <AssetIcon src={FE_ASSETS.upLine} size={12} />
           <span>Up</span>
         </button>
         <div className="fe-cmd-sep" />
         <button className="fe-cmd-btn" onClick={handleNewFolder} title="New folder">
-          <FolderPlus size={15} />
+          <AssetIcon src={FE_ASSETS.newFolder} size={12} />
           <span>New folder</span>
         </button>
         <button className="fe-cmd-btn" onClick={handleNewFile} title="New file">
-          <FilePlus size={15} />
+          <AssetIcon src={FE_ASSETS.newFile} size={12} />
           <span>New file</span>
         </button>
         <div className="fe-cmd-sep" />
         <button className="fe-cmd-btn" onClick={() => { if (selectedFile) setClipboard({ action: 'cut', path: selectedFile.path }) }} disabled={!selectedFile} title="Cut">
-          <Scissors size={15} />
+          <AssetIcon src={FE_ASSETS.cut} size={12} />
           <span>Cut</span>
         </button>
         <button className="fe-cmd-btn" onClick={() => { if (selectedFile) setClipboard({ action: 'copy', path: selectedFile.path }) }} disabled={!selectedFile} title="Copy">
-          <ClipboardCopy size={15} />
+          <AssetIcon src={FE_ASSETS.copy} size={12} />
           <span>Copy</span>
         </button>
         <button className={`fe-cmd-btn ${clipboard ? 'fe-cmd-btn--active' : ''}`} onClick={handlePaste} disabled={!clipboard} title="Paste">
-          <ClipboardPaste size={15} />
+          <AssetIcon src={FE_ASSETS.paste} size={12} />
           <span>Paste</span>
         </button>
         <div className="fe-cmd-sep" />
         <button className="fe-cmd-btn" onClick={() => { if (selectedFile) { setRenameTarget(selectedFile.path); setRenameName(selectedFile.path.split('/').pop()); setShowRenameDialog(true) } }} disabled={!selectedFile} title="Rename">
-          <Pencil size={15} />
+          <AssetIcon src={FE_ASSETS.rename} size={12} />
           <span>Rename</span>
         </button>
         <button className="fe-cmd-btn fe-cmd-btn--danger" onClick={() => { if (selectedFile) { setDeleteTarget(selectedFile.path); setShowDeleteConfirm(true) } }} disabled={!selectedFile} title="Delete">
-          <Trash2 size={15} />
+          <AssetIcon src={FE_ASSETS.recycle} size={12} />
           <span>Delete</span>
         </button>
         {isRecycleBin && (
@@ -542,7 +708,7 @@ export default function FileExplorer({ onWindowTitleChange }) {
 
         {/* Search */}
         <div className="fe-searchbar">
-          <Search size={14} className="fe-search-icon" />
+          <Search size={15} strokeWidth={2.8} className="fe-search-icon" />
           <input
             className="fe-search-input"
             placeholder="Search"
@@ -573,7 +739,7 @@ export default function FileExplorer({ onWindowTitleChange }) {
                   className={`fe-sidebar-item ${currentPath === item.path ? 'fe-sidebar-item--active' : ''}`}
                   onClick={() => handleNavigate(item.path)}
                 >
-                  <Icon size={15} className="fe-sidebar-icon" />
+                  <SidebarAssetIcon item={item} />
                   <span>{item.name}</span>
                 </button>
               )
@@ -592,7 +758,7 @@ export default function FileExplorer({ onWindowTitleChange }) {
                   className={`fe-sidebar-item ${currentPath === item.path ? 'fe-sidebar-item--active' : ''}`}
                   onClick={() => handleNavigate(item.path)}
                 >
-                  <Icon size={15} className="fe-sidebar-icon" />
+                  <SidebarAssetIcon item={item} />
                   <span>{item.name}</span>
                 </button>
               )
@@ -609,12 +775,6 @@ export default function FileExplorer({ onWindowTitleChange }) {
               <button onClick={() => setError('')}><X size={13} /></button>
             </div>
           )}
-          {currentPath === '/home/user/Desktop' && (
-            <div className="fe-strip fe-strip--info">
-              <Home size={13} />
-              <span>Desktop — app shortcuts and files</span>
-            </div>
-          )}
           {isSearching && searchQuery && (
             <div className="fe-strip fe-strip--search">
               <Search size={13} />
@@ -623,7 +783,7 @@ export default function FileExplorer({ onWindowTitleChange }) {
           )}
 
           {/* File grid */}
-          <div className="fe-grid" onClick={() => setSelectedFile(null)}>
+          <div className={`fe-grid ${currentPath === '/' && !isSearching ? 'fe-grid--this-pc' : ''}`} onClick={() => setSelectedFile(null)}>
             {displayEntries.length === 0 ? (
               <div className="fe-empty">
                 <Folder size={48} style={{ color: 'var(--win-border)', marginBottom: 12 }} />
@@ -631,19 +791,22 @@ export default function FileExplorer({ onWindowTitleChange }) {
               </div>
             ) : (
               displayEntries.map(entry => {
-                const entryName = entry.path.split('/').pop()
+                const entryName = getEntryName(entry)
+                const entryAssetName = getEntryAssetName(entry)
                 const isShortcut = isAppShortcut(entry)
                 const thumb = thumbnails[entry.path]
+                const assetKey = getExplorerAssetKey(entryAssetName, entry.type === 'dir')
+                const asset = assetKey ? FE_ASSETS[assetKey] : null
                 const { Icon, color } = getFileIcon(entryName, entry.type === 'dir')
                 const ShortcutIcon = isShortcut ? getShortcutIcon(entry) : null
+                const shortcutIconSrc = isShortcut ? getShortcutIconSrc(entry) : null
 
                 return (
                   <div
                     key={entry.path}
                     className={`fe-item ${selectedFile?.path === entry.path ? 'fe-item--selected' : ''} ${isShortcut ? 'fe-item--shortcut' : ''}`}
                     onClick={e => { e.stopPropagation(); handleFileClick(entry) }}
-                    onContextMenu={e => handleContextMenu(e, entry)}
-                    title={entryName}
+                    onContextMenu={e => { if (!entry.isThisPcVirtual) handleContextMenu(e, entry) }}
                   >
                     <div className="fe-item-icon-wrap">
                       {thumb ? (
@@ -653,6 +816,10 @@ export default function FileExplorer({ onWindowTitleChange }) {
                             : <video src={thumb.url} muted playsInline loop autoPlay preload="metadata" />
                           }
                         </div>
+                      ) : asset ? (
+                        <img className={`fe-item-asset fe-item-asset--${assetKey}`} src={asset} alt="" />
+                      ) : shortcutIconSrc ? (
+                        <img className="fe-item-asset fe-item-asset--desktop-shortcut" src={shortcutIconSrc} alt="" />
                       ) : isShortcut && ShortcutIcon ? (
                         <ShortcutIcon size={36} style={{ color: '#0067c0' }} />
                       ) : (
