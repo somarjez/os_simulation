@@ -67,6 +67,14 @@ export default function SettingsApp({ initialSection = 'system' }) {
 
   const wallpaperOptions = BUILTIN_WALLPAPER_OPTIONS
 
+  // Helper: allow Enter/Space to activate non-button elements (used for theme cards, color swatches)
+  const handleKeyActivate = (e, cb) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      cb()
+    }
+  }
+
   const hexToRgba = (hex, alpha) => {
     const sanitized = hex.replace('#', '')
     if (sanitized.length !== 6) return `rgba(0, 103, 192, ${alpha})`
@@ -420,14 +428,22 @@ export default function SettingsApp({ initialSection = 'system' }) {
               <div className="settings-theme-options">
                 <div
                   className={`settings-theme-card ${settings.theme === 'light' ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={settings.theme === 'light'}
                   onClick={() => updateSetting('theme', 'light')}
+                  onKeyDown={(e) => handleKeyActivate(e, () => updateSetting('theme', 'light'))}
                 >
                   <div className="settings-theme-preview light-preview"></div>
                   <div className="settings-theme-name">Light</div>
                 </div>
                 <div
                   className={`settings-theme-card ${settings.theme === 'dark' ? 'active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={settings.theme === 'dark'}
                   onClick={() => updateSetting('theme', 'dark')}
+                  onKeyDown={(e) => handleKeyActivate(e, () => updateSetting('theme', 'dark'))}
                 >
                   <div className="settings-theme-preview dark-preview"></div>
                   <div className="settings-theme-name">Dark</div>
@@ -441,9 +457,14 @@ export default function SettingsApp({ initialSection = 'system' }) {
                 {['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#16a34a', '#0891b2'].map(color => (
                   <div
                     key={color}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Accent color ${color}`}
+                    aria-pressed={settings.accentColor === color}
                     className={`settings-color-option ${settings.accentColor === color ? 'active' : ''}`}
                     style={{ backgroundColor: color }}
                     onClick={() => updateSetting('accentColor', color)}
+                    onKeyDown={(e) => handleKeyActivate(e, () => updateSetting('accentColor', color))}
                   />
                 ))}
               </div>
@@ -458,6 +479,8 @@ export default function SettingsApp({ initialSection = 'system' }) {
                     type="button"
                     className={`settings-wallpaper-card ${settings.wallpaper === option.id ? 'active' : ''}`}
                     onClick={() => updateSetting('wallpaper', option.id)}
+                    aria-pressed={settings.wallpaper === option.id}
+                    aria-label={`Set wallpaper ${option.label}`}
                   >
                     <div
                       className="settings-wallpaper-preview"
@@ -680,7 +703,12 @@ export default function SettingsApp({ initialSection = 'system' }) {
                     </div>
                   </div>
                 )}
-                <button className="settings-button" onClick={loadStorageInfo}>
+                <button
+                  className="settings-button"
+                  onClick={loadStorageInfo}
+                  aria-label="Refresh storage information"
+                  style={{ marginTop: '12px' }}
+                >
                   Refresh Storage Info
                 </button>
               </>
@@ -909,10 +937,24 @@ export default function SettingsApp({ initialSection = 'system' }) {
             )}
             {updateError && <div className="settings-update-error">{updateError}</div>}
             <div className="settings-update-actions">
-              <button type="button" className="settings-button secondary" onClick={checkForUpdates} disabled={updateBusy}>
+              <button
+                type="button"
+                className="settings-button secondary"
+                onClick={checkForUpdates}
+                disabled={updateBusy}
+                aria-busy={updateBusy}
+                aria-label="Check for updates"
+              >
                 {updateBusy ? 'Checking...' : 'Check for updates'}
               </button>
-              <button type="button" className="settings-button" onClick={installUpdate} disabled={updateBusy || !updateStatus?.update_available}>
+              <button
+                type="button"
+                className="settings-button"
+                onClick={installUpdate}
+                disabled={updateBusy || !updateStatus?.update_available}
+                aria-busy={updateBusy}
+                aria-label="Install update"
+              >
                 {updateBusy ? 'Working...' : 'Install update'}
               </button>
               <button
@@ -921,6 +963,8 @@ export default function SettingsApp({ initialSection = 'system' }) {
                 onClick={uninstallUpdate}
                 disabled={updateBusy || updateHistory.length < 2}
                 title={updateHistory.length < 2 ? 'Need at least one update installed to rollback' : 'Rollback to previous version'}
+                aria-busy={updateBusy}
+                aria-label="Uninstall update"
               >
                 Uninstall update
               </button>
@@ -963,6 +1007,8 @@ export default function SettingsApp({ initialSection = 'system' }) {
                 key={section.id}
                 className={`settings-nav-item ${activeSection === section.id ? 'active' : ''}`}
                 onClick={() => setActiveSection(section.id)}
+                aria-current={activeSection === section.id ? 'page' : undefined}
+                aria-label={`${section.label} settings`}
               >
                 <Icon size={20} className="settings-nav-icon" />
                 <span className="settings-nav-label">{section.label}</span>

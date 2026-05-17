@@ -2,6 +2,8 @@
    Global Styles - Reset & Base Styles
    ============================================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
 * {
   box-sizing: border-box;
 }
@@ -17,6 +19,7 @@ body {
   background-color: var(--win-bg);
   color: var(--win-text);
   font-size: 14px;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 :root {
